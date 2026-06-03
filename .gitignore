@@ -1,0 +1,17 @@
+# Ignore all data files
+data/
+*.csv
+*.xlsx
+*.rds
+*.RData
+
+# Ignore R history and user-specific files
+.Rhistory
+.Ruserdata
+
+# Ignore keys
+*.key
+
+# Ignore experimental scripts and outputs
+scripts/experimental/
+output/
