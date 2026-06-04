@@ -6,7 +6,7 @@ clean_acs_data <- read_csv("../data/clean/acs_data.csv")
 clean_noi_data <- read_csv("../data/clean/noi_data.csv")
 
 # 2. Merge the cleaned ACS and NOI datasets on GEOID and year
-merged_data <- clean_acs_data %>%
+merged_data <- clean_acs_data |>
   left_join(clean_noi_data, by = c("GEOID", "year"))
 
 # 3. Save the merged dataset to a new CSV file
