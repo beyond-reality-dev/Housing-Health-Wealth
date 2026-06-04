@@ -5,46 +5,66 @@ library(tidyverse)
 noi_url <- "https://opendata.maryland.gov/resource/nme2-wik5.csv?$limit=1500"
 
 # 2. Pull the dataset
-raw_noi_data <- read_csv(noi_url)
+raw_noi_data <- read_csv(noi_url, show_col_types = FALSE)
 
 # 3. Clean and reshape from wide to long (panel) format
 clean_noi_data <- raw_noi_data %>%
   pivot_longer(
-    cols = -geoid20, 
+    cols = -geoid20,
     names_to = "year",
     values_to = "total_noi"
   ) %>%
   mutate(
-    # Extract just the 4-digit year from the Socrata column names (e.g., "_2022")
     year = as.numeric(str_extract(year, "\\d{4}")),
-    
-    # Rename geoid20 to standard GEOID and ensure it is a character string
     GEOID = as.character(geoid20),
-    
-    # Ensure the count is treated as a number
     total_noi = as.numeric(total_noi)
   ) %>%
-  # Keep only the standardized panel columns
   select(GEOID, year, total_noi)
 
+# 4. Read ACS mortgaged-owner counts for proportional allocation
+acs_data <- read_csv("../data/clean/acs_data.csv", show_col_types = FALSE) %>%
+  mutate(GEOID = as.character(GEOID))
+
+# 5. Define statewide NOI totals by year
+state_totals <- tibble(
+  year = c(2022, 2023, 2024, 2025),
+  state_total_noi = c(55671, 66580, 79577, 91076)
+)
+
+# 6. Join ACS weights and allocate suppressed counts
+noi_weighted <- clean_noi_data %>%
+  left_join(
+    acs_data %>%
+      select(GEOID, year, total_owners_m),
+    by = c("GEOID", "year")
+  ) %>%
+  left_join(state_totals, by = "year") %>%
+  group_by(year) %>%
+  mutate(
+    observed_noi_total = sum(total_noi, na.rm = TRUE),
+    missing_noi_total = pmax(state_total_noi - observed_noi_total, 0),
+    suppressed_weight = if_else(is.na(total_noi), coalesce(total_owners_m, 0), 0),
+    suppressed_weight_total = sum(suppressed_weight, na.rm = TRUE),
+    suppressed_noi_allocation = if_else(
+      is.na(total_noi) & suppressed_weight_total > 0,
+      missing_noi_total * suppressed_weight / suppressed_weight_total,
+      0
+    ),
+    final_imputed_noi = case_when(
+      !is.na(total_noi) ~ total_noi,
+      is.na(total_noi) & suppressed_weight_total > 0 ~ pmin(suppressed_noi_allocation, 9),
+      TRUE ~ NA_real_
+    ),
+    noi_per_1000_owners = (final_imputed_noi / total_owners_m) * 1000
+  ) %>%
+  ungroup() %>%
+  select(GEOID, year, total_noi, total_owners_m, state_total_noi, observed_noi_total, missing_noi_total, final_imputed_noi, noi_per_1000_owners)
+
+# 7. Save the cleaned NOI data to a CSV file
 output_file <- "../data/clean/noi_data.csv"
-
-# Make sure the output folder exists when the script is run from scripts/
 dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
-
-# Delete existing file if it exists to avoid appending to old data
 if (file.exists(output_file)) {
   file.remove(output_file)
 }
 
-# Save the cleaned NOI data to a CSV file
-write_csv(clean_noi_data, output_file)
-
-# See how many NAs exist in each year
-clean_noi_data %>%
-  group_by(year) %>%
-  summarize(
-    total_suppressed = sum(is.na(total_noi)),
-    # You can also count how many valid rows you have for comparison
-    valid_rows = sum(!is.na(total_noi)) 
-  )
+write_csv(noi_weighted %>% select(GEOID, year, total_noi = final_imputed_noi, noi_per_1000_owners), output_file)

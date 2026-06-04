@@ -11,7 +11,8 @@ years <- 2020:2024
 vars_denominators <- c(
   total_pop          = "B01003_001",  # Total population
   total_households   = "B25003_001",  # Total occupied housing units
-  total_owners       = "B25003_002",  # Owner-occupied housing units
+  total_owners_m     = "B25081_001",  # Owner-occupied housing units with a mortgage
+  total_owners_nm    = "B25081_008",  # Owner-occupied housing units without a mortgage
   total_renters      = "B25003_003"   # Renter-occupied housing units
 )
 vars_cost_burden <- c(
@@ -39,11 +40,9 @@ vars_cost_burden <- c(
   owner_nm_50_plus   = "B25091_022",
   owner_nm_not_comp  = "B25091_023"
 )
-
 vars_tenure <- c(
   med_tenure = "B25039_001"
 )
-
 vars_overcrowding <- c(
   occ_total          = "B25014_001",
   occ_own_total      = "B25014_002",
@@ -133,11 +132,12 @@ calc_facilities <- function(df) {
 
 # Compute all metrics and combine into a single data frame
 dfdenominators <- raw_acs_data %>%
-  select(GEOID, year, total_popE, total_householdsE, total_ownersE, total_rentersE) %>%
+  select(GEOID, year, total_popE, total_householdsE, total_owners_mE, total_owners_nmE, total_rentersE) %>%
   rename(
     total_pop = total_popE,
     total_households = total_householdsE,
-    total_owners = total_ownersE,
+    total_owners_m = total_owners_mE,
+    total_owners_nm = total_owners_nmE,
     total_renters = total_rentersE
   )
 dfcost_burden <- calc_cost_burden(raw_acs_data)
