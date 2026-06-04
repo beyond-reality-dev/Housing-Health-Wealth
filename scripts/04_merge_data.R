@@ -4,10 +4,12 @@ library(tidyverse)
 # 1. Pull in the cleaned ACS and NOI datasets
 clean_acs_data <- read_csv("../data/clean/acs_data.csv")
 clean_noi_data <- read_csv("../data/clean/noi_data.csv")
+clean_vacancy_data <- read_csv("../data/clean/vacancy_data.csv")
 
 # 2. Merge the cleaned ACS and NOI datasets on GEOID and year
 merged_data <- clean_acs_data |>
-  left_join(clean_noi_data, by = c("GEOID", "year"))
+  left_join(clean_noi_data, by = c("GEOID", "year")) |>
+  left_join(clean_vacancy_data |> select(GEOID, year, vacancy_rate), by = c("GEOID", "year"))
 
 # 3. Save the merged dataset to a new CSV file
 output_file <- "../data/clean/merged_panel_data.csv"

@@ -13,7 +13,7 @@ vars_denominators <- c(
   total_households   = "B25003_001", # Total occupied housing units
   total_owners_m     = "B25081_001", # Owner-occupied units with a mortgage
   total_owners_nm    = "B25081_008", # Owner-occupied units without a mortgage
-  total_renters      = "B25003_003"  # Renter-occupied housing units
+  total_renters      = "B25003_003" # Renter-occupied housing units
 )
 vars_cost_burden <- c(
   # Renters (B25070)
@@ -38,11 +38,12 @@ vars_cost_burden <- c(
   owner_nm_35_39     = "B25091_020", # Ownership costs of 35-39.9% of income
   owner_nm_40_49     = "B25091_021", # Ownership costs of 40-49.9% of income
   owner_nm_50_plus   = "B25091_022", # Ownership costs of >=50% of income
-  owner_nm_not_comp  = "B25091_023"  # Ownership with missing cost burden data
+  owner_nm_not_comp  = "B25091_023" # Ownership with missing cost burden data
 )
 vars_tenure <- c(
   med_tenure = "B25039_001", # Median year household moved into unit
-  unit_age = "B25034_001"    # Median year structure built
+  med_building_age = "B25035_001", # Median year structure built
+  total_vacant = "B25004_001" # Total housing units
 )
 vars_overcrowding <- c(
   occ_total          = "B25014_001", # total occupied units
@@ -53,12 +54,12 @@ vars_overcrowding <- c(
   occ_rnt_total      = "B25014_008", # total renter-occupied
   occ_rnt_1_01_1_50  = "B25014_011", # overcrowded (renter)
   occ_rnt_1_51_2_00  = "B25014_012", # severely overcrowded (renter)
-  occ_rnt_2_01_plus  = "B25014_013"  # severely overcrowded (renter)
+  occ_rnt_2_01_plus  = "B25014_013" # severely overcrowded (renter)
 )
 vars_facilities <- c(
-  plumb_total = "B25048_001",    # Total occupied units (plumbing facilities)
-  plumb_lacking = "B25048_003",  # Units lacking complete plumbing facilities
-  kitchen_total = "B25052_001",  # Total occupied units (kitchen facilities)
+  plumb_total = "B25048_001", # Total occupied units (plumbing facilities)
+  plumb_lacking = "B25048_003", # Units lacking complete plumbing facilities
+  kitchen_total = "B25052_001", # Total occupied units (kitchen facilities)
   kitchen_lacking = "B25052_003" # Units lacking complete kitchen facilities
 )
 
@@ -110,8 +111,16 @@ calc_cost_burden <- function(df) {
 # Calculate median tenure in years
 calc_tenure <- function(df) {
   df |>
-    mutate(med_tenure_yrs = year - med_tenureE, unit_age = year - unit_ageE) |>
-    select(GEOID, year, med_tenure_yrs, unit_age)
+    mutate(
+      med_tenure = year - med_tenureE,
+      # If median building age is not a plausible year, set to NA
+      med_building_age = if_else(
+        med_building_ageE < 1800 | med_building_ageE > year,
+        NA_real_,
+        year - med_building_ageE
+      )
+    ) |>
+    select(GEOID, year, med_tenure, med_building_age, total_vacant = total_vacantE)
 }
 
 # Overcrowding: >1.01 persons/room; severe: >1.50 persons/room
@@ -120,14 +129,14 @@ calc_overcrowding <- function(df) {
     mutate(
       overcrowded_count = occ_own_1_01_1_50E + occ_rnt_1_01_1_50E,
       severely_overcrowded_count = occ_own_1_51_2_00E + occ_own_2_01_plusE +
-      occ_rnt_1_51_2_00E + occ_rnt_2_01_plusE,
+        occ_rnt_1_51_2_00E + occ_rnt_2_01_plusE,
       pct_overcrowded = (overcrowded_count / occ_totalE) * 100,
       pct_severely_overcrowded = (severely_overcrowded_count / occ_totalE) * 100
     ) |>
     select(GEOID, year, pct_overcrowded, pct_severely_overcrowded)
 }
 
-# Housing quality: share of occupied units lacking complete 
+# Housing quality: share of occupied units lacking complete
 # plumbing or kitchen facilities
 calc_facilities <- function(df) {
   df |>
