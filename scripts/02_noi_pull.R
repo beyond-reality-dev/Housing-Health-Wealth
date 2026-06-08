@@ -27,8 +27,8 @@ acs_data <- read_csv("../data/clean/acs_data.csv", show_col_types = FALSE) |>
 
 # 5. Define statewide NOI totals by year
 state_totals <- tibble(
-  year = c(2022, 2023, 2024, 2025),
-  state_total_noi = c(55671, 66580, 79577, 91076)
+  year = c(2022, 2023, 2024, 2025),               # Data is from the Maryland
+  state_total_noi = c(55671, 66580, 79577, 91076) # DoL Foreclosure Data Tracker
 )
 
 # 6. Join ACS weights and allocate suppressed counts
@@ -41,15 +41,22 @@ noi_weighted <- clean_noi_data |>
   left_join(state_totals, by = "year") |>
   group_by(year) |>
   mutate(
+    # Calculate how many NOIs are missing statewide due to privacy suppression
     observed_noi_total = sum(total_noi, na.rm = TRUE),
     missing_noi_total = pmax(state_total_noi - observed_noi_total, 0),
+
+    # Assign a weight (number of mortgages) ONLY to suppressed tracts
     suppressed_weight = if_else(is.na(total_noi), coalesce(total_owners_m, 0), 0),
     suppressed_weight_total = sum(suppressed_weight, na.rm = TRUE),
+
+    # Allocate the missing state total proportionally based on the weights
     suppressed_noi_allocation = if_else(
       is.na(total_noi) & suppressed_weight_total > 0,
       missing_noi_total * suppressed_weight / suppressed_weight_total,
       0
     ),
+
+    # Cap the imputed NOI at 9 (the maximum possible suppressed value)
     final_imputed_noi = case_when(
       !is.na(total_noi) ~ total_noi,
       is.na(total_noi) & suppressed_weight_total > 0

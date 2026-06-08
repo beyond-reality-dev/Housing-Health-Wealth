@@ -1,5 +1,6 @@
 # Ignore all data files
-data/
+data/clean/*
+data/raw/vacancy/*
 *.csv
 *.xlsx
 *.rds
@@ -14,4 +15,4 @@ data/
 
 # Ignore experimental scripts and outputs
 scripts/experimental/
-output/
+output/*
