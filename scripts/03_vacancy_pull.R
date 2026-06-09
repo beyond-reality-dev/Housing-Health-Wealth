@@ -7,27 +7,10 @@ ruca_codes <- read_csv("../data/raw/vacancy/ruca_codes.csv", show_col_types = FA
   select(GEOID, PrimaryRUCA) |>
   filter(str_starts(GEOID, "24"))
 
-# 2. Read USPS vacancy files for 2020-2023
+# 2. Read USPS vacancy files for 2020-2025
 vacancy_files <- list.files("../data/raw/vacancy/", pattern = "\\.dbf$", full.names = TRUE)
 vacancy_data <- map_dfr(vacancy_files, function(file) {
-  if (requireNamespace("sf", quietly = TRUE)) {
-    df <- tryCatch(
-      sf::st_read(file, quiet = TRUE) |> sf::st_drop_geometry(),
-      error = function(e) {
-        if (requireNamespace("foreign", quietly = TRUE)) {
-          foreign::read.dbf(file, as.is = TRUE)
-        } else {
-          stop(e)
-        }
-      }
-    )
-  } else if (requireNamespace("foreign", quietly = TRUE)) {
-    df <- foreign::read.dbf(file, as.is = TRUE)
-  } else {
-    stop("Neither sf nor foreign is available to read DBF files.")
-  }
-
-  df |>
+  foreign::read.dbf(file, as.is = TRUE) |>
     mutate(
       GEOID = as.character(geoid),
       year = as.integer(str_extract(basename(file), "\\d{4}"))
@@ -54,15 +37,25 @@ crosswalk <- readxl::read_excel("../data/raw/vacancy/tract_crosswalk.xlsx") |>
     str_starts(GEOID_2020, "24")
   )
 
-vacancy_data <- vacancy_data |>
+# Process pre-2024 data by crosswalking to 2020 GEOIDs and applying the RES_RATIO weights
+vacancy_pre_2024 <- vacancy_data |>
+  filter(year <= 2023) |>
   left_join(crosswalk, by = c("GEOID" = "GEOID_2010"), relationship = "many-to-many") |>
   mutate(
-    weight = if_else(year <= 2023, coalesce(RES_RATIO, 1), 1),
-    GEOID = if_else(year <= 2023, coalesce(GEOID_2020, GEOID), GEOID),
+    GEOID = coalesce(GEOID_2020, GEOID),
+    weight = coalesce(RES_RATIO, 1),
     tot_addresses = tot_addresses * weight,
     tot_vac = tot_vac * weight,
     tot_nostat = tot_nostat * weight
-  ) |>
+  )
+
+# Keep post-2023 data as is (already in 2020 GEOIDs)
+vacancy_post_2023 <- vacancy_data |>
+  filter(year > 2023) |>
+  mutate(weight = 1)
+
+# Combine pre-2024 and post-2023 data
+vacancy_data <- bind_rows(vacancy_pre_2024, vacancy_post_2023) |>
   select(GEOID, year, tot_addresses, tot_vac, tot_nostat) |>
   group_by(GEOID, year) |>
   summarize(

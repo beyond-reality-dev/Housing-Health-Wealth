@@ -1,7 +1,7 @@
 <!-- omit in toc -->
 # Housing, Health, and Wealth Analyzer
 
-This repository contains code and documentation for the Housing, Health, and Wealth Analyzer project. The project aims to analyze the relationships between housing conditions, health outcomes, and wealth indicators across Maryland census tracts.
+This repository contains code and documentation for the Housing, Health, and Wealth Analyzer project. The project aims to analyze the relationships between Housing Stability, Health Outcomes, and Wealth Accumulation across Maryland census tracts.
 
 <!-- omit in toc -->
 ## Table of Contents
@@ -11,6 +11,7 @@ This repository contains code and documentation for the Housing, Health, and Wea
   - [ACS Data](#acs-data)
   - [NOI Data](#noi-data)
   - [Vacancy Data](#vacancy-data)
+  - [Subsidized Housing Data](#subsidized-housing-data)
 - [Usage](#usage)
   - [Requirements](#requirements)
   - [Running the Scripts](#running-the-scripts)
@@ -31,6 +32,8 @@ The project is organized into the following directories:
 
 ## Data Sources
 
+Note: All data sources are at the census tract level, which is the smallest geographic unit for which the HHW framework can be operationalized given data availability constraints. Additionally, due to the dependency on ACS data, data that may be available earlier than 2020 is not listed here, although it may be possible to pull and process data for earlier years in future iterations of the project.
+
 ### ACS Data
 *Years of availability:* 2020-2024 (current tract boundaries)
 
@@ -46,12 +49,18 @@ The project is organized into the following directories:
 
 *Description:* The vacancy data is sourced from a partnership between the United States Postal Service (USPS) and the Department of Housing and Urban Development (HUD). This dataset provides information on residential vacancies at the census tract level, which is a critical component of the Housing Stability Index. The data is updated quarterly, but prior to 2024, data was reported according to 2010 census tract boundaries, requiring a crosswalk to align with current tract boundaries for analysis.
 
+### Subsidized Housing Data
+*Years of availability:* 2020-2025 (current tract boundaries)
+
+*Description:* The subsidized housing data is sourced from the National Housing Preservation Database (NHPD) which draws from a variety of administrative datasets, including the HUD Picture of Subsidized Households. This dataset provides information on the number of subsidized housing units at the census tract level.
+
 ## Usage
 
 ### Requirements
 To run the scripts in this repository, you will need the following software, packages, and data:
 - R (version 4.0 or higher)
 - All packages listed in the `renv.lock` file (use `renv::restore()` to install them)
+- A key for the Census API to access ACS data (register at [Census Bureau's website](https://api.census.gov/data/key_signup.html)), pasted into a file named `census.key` in the root directory of the project.
 - USPS/HUD vacancy data:
   - Available to registered users at [HUD's website](https://www.huduser.gov/portal/datasets/usps.html) for governmental and nonprofit use.
   - Must be named according to the format `usps_vac_YYYY.dbf` and placed in the `data/raw/vacancy/` directory.
@@ -59,6 +68,8 @@ To run the scripts in this repository, you will need the following software, pac
   - Download the latest RUCA codes from the [USDA's website](https://www.ers.usda.gov/data-products/rural-urban-commuting-area-codes/) and save the file as `ruca_codes.csv` in the `data/raw/vacancy` directory.
 - USPS tract crosswalk:
   - Download the 2019 "2010-2020" USPS tract crosswalk from the [HUD website](https://www.huduser.gov/portal/datasets/census_tract_crosswalk.html) and save the file as `tract_crosswalk.xlsx` in the `data/raw/vacancy` directory.
+- National Housing Preservation Database (NHPD) subsidized housing data:
+  - Download the latest NHPD data from the [NHPD website](https://preservationdatabase.org) ("All Subsidies") and save the file as `nhpd_subsidies.xlsx` in the `data/raw/subsidized/` directory.
 
 ### Running the Scripts
 1. Clone the repository to your local machine.
@@ -67,7 +78,10 @@ To run the scripts in this repository, you will need the following software, pac
    - `scripts/01_acs_pull.R`: Pulls and processes ACS data for the relevant years.
    - `scripts/02_noi_pull.R`: Pulls and processes NOI data, including imputation for suppressed values.
    - `scripts/03_vacancy_pull.R`: Pulls and processes USPS/HUD vacancy data, including crosswalking to current census tract boundaries.
-   - `scripts/04_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction.
+   - `scripts/04_subsidized_pull.R`: Pulls and processes NHPD subsidized housing data, including crosswalking to current census tract boundaries.
+   - `scripts/05_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction.
+   - `scripts/06_calculate_index.R`: Calculates the Housing Stability Index (HSI).
+   - `scripts/07_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
 4. After running the scripts, the processed data will be saved in the `data/clean/` directory. You can then proceed with analysis and visualization using the merged dataset.
 5. Refer to the `output/` directory for generated tables and figures based on the processed data.
 
