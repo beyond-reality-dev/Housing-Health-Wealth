@@ -19,9 +19,9 @@ hsi_multi_year <- md_tracts |>
 
 # 2. Define a unified color palette across all years (0 to 100)
 pal <- colorNumeric(
-  palette = "magma", 
+  palette = "inferno", 
   domain = c(0, 100), 
-  na.color = "grey80"
+  na.color = "grey"
 )
 
 # 3. Initialize the base map
@@ -29,7 +29,7 @@ timeline_map <- leaflet() |>
   addProviderTiles(providers$CartoDB.Positron)
 
 # 4. Loop through each year and add it as a separate layer group
-target_years <- 2020:2024
+target_years <- 2010:2024
 
 for (current_year in target_years) {
   # Filter data for just this loop's year

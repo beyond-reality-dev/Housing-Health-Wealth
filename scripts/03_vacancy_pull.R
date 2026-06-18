@@ -7,7 +7,7 @@ ruca_codes <- read_csv("../data/raw/vacancy/ruca_codes.csv", show_col_types = FA
   select(GEOID, PrimaryRUCA) |>
   filter(str_starts(GEOID, "24"))
 
-# 2. Read USPS vacancy files for 2016-2025
+# 2. Read USPS vacancy files for 2010-2025
 vacancy_files <- list.files("../data/raw/vacancy/", pattern = "\\.dbf$", full.names = TRUE)
 vacancy_data <- map_dfr(vacancy_files, function(file) {
   foreign::read.dbf(file, as.is = TRUE) |>
@@ -25,7 +25,7 @@ vacancy_data <- map_dfr(vacancy_files, function(file) {
 }) |>
   filter(str_starts(GEOID, "24"))
 
-# 3. Crosswalk years 2016-2023 from 2010 GEOIDs to 2020 GEOIDs
+# 3. Crosswalk years 2010-2023 from 2010 GEOIDs to 2020 GEOIDs
 read_crosswalk <- function(path) {
   readxl::read_excel(path) |>
     mutate(
@@ -42,6 +42,7 @@ read_crosswalk <- function(path) {
 # Map each year to its crosswalk file
 # 2019 crosswalk covers 2019-2023; each earlier year has its own
 crosswalk_lookup <- list(
+  "2015" = read_crosswalk("../data/raw/vacancy/tract_crosswalk_2015.xlsx"),
   "2016" = read_crosswalk("../data/raw/vacancy/tract_crosswalk_2016.xlsx"),
   "2017" = read_crosswalk("../data/raw/vacancy/tract_crosswalk_2017.xlsx"),
   "2018" = read_crosswalk("../data/raw/vacancy/tract_crosswalk_2018.xlsx"),
@@ -90,7 +91,7 @@ vacancy_data <- vacancy_data |>
   left_join(acs_data, by = c("GEOID", "year")) |>
   mutate(
     usps_rate = tot_vac / tot_addresses,
-    acs_vacancy_rate = total_vacant / total_households
+    acs_vacancy_rate = if_else(is.na(total_vacant), NA_real_, total_vacant / total_households)
   )
 
 # 5. Calibrate USPS vacancy rates to ACS vacancy rates for urban tracts
@@ -120,7 +121,8 @@ vacancy_data <- vacancy_data |>
       PrimaryRUCA == 1  ~ usps_rate_calibrated,
       PrimaryRUCA != 1  ~ acs_vacancy_rate,
       TRUE              ~ NA_real_
-    )
+    ),
+    vacancy_rate = if_else(highly_seasonal, NA_real_, vacancy_rate)
   ) |>
   select(GEOID, year, vacancy_rate)
 
@@ -131,3 +133,61 @@ if (file.exists(output_file)) {
   file.remove(output_file)
 }
 write_csv(vacancy_data, output_file)
+
+library(dplyr)
+library(readr)
+library(tigris)
+library(sf)          # Required for spatial transformations
+library(leaflet)     # The interactive mapping library
+library(htmlwidgets) # Required to save the HTML file
+
+md_tracts <- tracts(state = "MD", year = 2020, cb = TRUE) |> select(GEOID)
+
+vacancy_map_data <- md_tracts |>
+  left_join(
+    vacancy_data |> 
+      filter(year == 2020) |> 
+      mutate(GEOID = as.character(GEOID)), 
+    by = "GEOID"
+  ) |>
+  # FIX: Leaflet requires WGS84 coordinates (Latitude/Longitude)
+  st_transform(crs = 4326)
+
+# 4. Define the color palette for Leaflet
+# This replaces scale_fill_gradient from ggplot2
+pal <- colorNumeric(
+  palette = "Reds", 
+  domain = vacancy_map_data$vacancy_rate,
+  na.color = "#cccccc" # Explicitly color NA values gray
+)
+
+# 5. Create the interactive map
+interactive_map <- leaflet(vacancy_map_data) |>
+  addProviderTiles(providers$CartoDB.Positron) |> # Adds a clean basemap
+  addPolygons(
+    fillColor = ~pal(vacancy_rate),
+    weight = 0.5,             # Border thickness
+    opacity = 1,              # Border opacity
+    color = "white",          # Border color
+    dashArray = "3",
+    fillOpacity = 0.7,        # Polygon fill opacity
+    # Add an interactive tooltip on hover
+    label = ~paste0("Tract: ", GEOID, "<br>Vacancy Rate: ", 
+                    round(vacancy_rate, 3)),
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "13px",
+      direction = "auto"
+    )
+  ) |>
+  # Add a legend
+  addLegend(
+    pal = pal, 
+    values = ~vacancy_rate, 
+    opacity = 0.7, 
+    title = "Vacancy Rate (2020)",
+    position = "bottomright"
+  )
+
+# 6. Save as a standalone HTML file
+saveWidget(interactive_map, file = "../md_vacancy_map.html", selfcontained = TRUE)

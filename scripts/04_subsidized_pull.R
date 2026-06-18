@@ -17,8 +17,8 @@ md_tracts <- tracts(state = "MD", year = 2020, cb = TRUE, class = "sf") |>
   st_transform(4326) |>
   select(GEOID)
 
-# 3. Generate the Annual Panel (2020-2024)
-target_years <- 2020:2024
+# 3. Generate the Annual Panel (2010-2024)
+target_years <- 2010:2024
 
 nhpd_annual_panel <- map_dfr(target_years, function(current_year) {
 
