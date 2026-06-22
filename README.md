@@ -21,9 +21,9 @@ This repository contains code and documentation for the Housing, Health, and Wea
 ## Project Overview
 The Housing, Health, and Wealth Analyzer project is designed to operationalize the Maryland Departmnt of Housing and Community Development's (DHCD) Housing, Health, and Wealth (HHW) framework. The framework aims to forward DHCD's mission of providing every Marylander “the opportunity to live and prosper in affordable, lovable and just communities” across three domains: Housing Stability, Health Outcomes, and Wealth Accumulation.
 
-Each domain (Housing Stability, Health Outcomes, and Wealth Accumulation), as well as the Displacement Risk Assessment, would be a combination of metrics relevant to each outcome. For example, Housing Stability would include factors like the eviction rate, foreclosure rate, cost burden, and overcrowding. Health Outcomes would include low birth weight rates, preventable hospitalizations, and the childhood lead poisoning rate, all of which are associated with chronic stressors from poor housing conditions. Similarly, wealth accumulation would measure rates of homeownership, the home appreciation rate, and the mortgage denial rate.
+Each domain (Housing Stability, Health Outcomes, and Wealth Accumulation), as well as the Displacement Risk Assessment, would be a combination of metrics relevant to each outcome. For example, Housing Stability would include factors like the eviction rate, foreclosure rate, cost burden, and overcrowding. Health Outcomes would include low birth weight rates, preventable hospitalizations, and the childhood lead poisoning rate, all of which are associated with chronic stressors from poor housing conditions. Similarly, Wealth Accumulation would measure rates of homeownership, the home appreciation rate, and the mortgage denial rate.
 
-As there are constraints on data availability, this pilot project focuses on the Housing Stability Index, which is primarily composed of publicly available Census and administrative data. The Health Outcomes and Wealth Accumulation indices will be developed in future phases of the project as more data becomes available.
+The Displacement Risk Assessment would include factors such as changes in minority population and education levels, which can indicate potential displacement of existing residents. The Displacement Risk Assessment is intended to identify areas at risk of gentrification and displacement, and to allow for the evaluation of whether improvements in the other indices are genuine gains for incumbent residents.
 
 ## Project Structure
 The project is organized into the following directories:
@@ -36,7 +36,7 @@ The project is organized into the following directories:
 Note: All data sources are at the 2020 census tract level, which is the smallest geographic unit for which the HHW framework can be operationalized given data availability constraints. All data not reported at the 2020 census tract level is crosswalked to the current tract boundaries using either stable tracts (in the case of ACS data) or the USPS tract crosswalk from the HUD website (in the case of vacancy data). For this reason, data prior to 2020 may not be directly comparable to the current tract boundaries, and caution should be exercised when interpreting results from earlier years.
 
 ### ACS Data
-*Years of availability:* 2010-2024 (current tract boundaries)
+*Years of availability:* 2010-2024 (health and wealth data only available for 2015-2024)
 
 *Description:* The American Community Survey (ACS) is a key data source for this project, providing detailed demographic, social, economic, and housing data. Because the HHW framework relies on census tract-level data, we utilize the ACS 5-year estimates, which offer more reliable data for smaller geographic areas.
 

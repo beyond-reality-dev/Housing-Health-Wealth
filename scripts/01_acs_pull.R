@@ -85,7 +85,24 @@ vars_base <- c(
   kitchen_total      = "B25052_001", kitchen_lacking    = "B25052_003",
 
   # Group housing
-  grp_hsg_total      = "B26001_001"
+  grp_hsg_total      = "B26001_001",
+
+  # Demographics
+  white              = "B02001_002", total_educated     = "B15002_001",
+  m_bachelor_degree  = "B15002_015", m_masters_degree   = "B15002_016",
+  m_professional     = "B15002_017", m_doctorate        = "B15002_018",
+  f_bachelor_degree  = "B15002_032", f_masters_degree   = "B15002_033",
+  f_professional     = "B15002_034", f_doctorate        = "B15002_035"
+)
+
+vars_health <- c(
+  pop_under_19       = "B27010_002", pop_65_and_over    = "B27010_051",
+  uninsured_under_34 = "B27010_033", uninsured_under_65 = "B27010_050"
+)
+
+vars_wealth <- c(
+  median_hh_income   = "B19013_001", poverty_total      = "B17001_002",
+  labor_force_total  = "B23025_003", unemployed         = "B23025_005"
 )
 
 # Year Structure Built Bins (Stable from 2015-2019)
@@ -99,16 +116,16 @@ bldg_bins_2015_2019 <- c(
 
 # Year Structure Built Bins (Stable from 2010-2014)
 bldg_bins_2010_2014 <- c(
-  built_2005_later = "B25034_002", built_2000_2004  = "B25034_003",
-  built_1990_1999  = "B25034_004", built_1980_1989  = "B25034_005",
-  built_1970_1979  = "B25034_006", built_1960_1969  = "B25034_007",
-  built_1950_1959  = "B25034_008", built_1940_1949  = "B25034_009",
+  built_2005_later   = "B25034_002", built_2000_2004    = "B25034_003",
+  built_1990_1999    = "B25034_004", built_1980_1989    = "B25034_005",
+  built_1970_1979    = "B25034_006", built_1960_1969    = "B25034_007",
+  built_1950_1959    = "B25034_008", built_1940_1949    = "B25034_009",
   built_1939_earlier = "B25034_010"
 )
 
 # Variable groups for API calls
-vars_2020_plus <- c(vars_base, med_tenure = "B25039_001", med_building_age = "B25035_001")
-vars_2015_2019     <- c(vars_base, med_tenure = "B25039_001", bldg_bins_2015_2019)
+vars_2020_plus     <- c(vars_base, vars_health, vars_wealth, med_tenure = "B25039_001", med_building_age = "B25035_001")
+vars_2015_2019     <- c(vars_base, vars_health, vars_wealth, med_tenure = "B25039_001", bldg_bins_2015_2019)
 vars_2010_2014     <- c(vars_base, med_tenure = "B25039_001", bldg_bins_2010_2014)
 
 # Bounds for the building age bins
@@ -300,9 +317,10 @@ calc_cost_burden <- function(df) {
       pct_severe_cost_burden_o = owner_sev_count / owner_denominator * 100,
       total_households = renter_denominator + owner_denominator,
       pct_moderate_cost_burden = ((renter_mod_count + owner_mod_count) / total_households) * 100,
-      pct_severe_cost_burden = ((renter_sev_count + owner_sev_count) / total_households) * 100
+      pct_severe_cost_burden = ((renter_sev_count + owner_sev_count) / total_households) * 100,
+      pct_homeowners = owner_denominator / total_households * 100
     ) |>
-    select(GEOID, year, pct_moderate_cost_burden, pct_severe_cost_burden, pct_moderate_cost_burden_r, pct_severe_cost_burden_r, pct_moderate_cost_burden_o, pct_severe_cost_burden_o)
+    select(GEOID, year, pct_moderate_cost_burden, pct_severe_cost_burden, pct_moderate_cost_burden_r, pct_severe_cost_burden_r, pct_moderate_cost_burden_o, pct_severe_cost_burden_o, pct_homeowners)
 }
 
 calc_tenure <- function(df) {
@@ -339,6 +357,48 @@ calc_facilities <- function(df) {
     select(GEOID, year, pct_lacking_plumbing, pct_lacking_kitchen)
 }
 
+calc_health <- function(df) {
+  df |>
+    mutate(
+      pop_under_65 = total_popE - pop_65_and_overE,
+      pop_uninsured = uninsured_under_34E + uninsured_under_65E,
+      pct_uninsured = (pop_uninsured / pop_under_65) * 100
+    ) |>
+    select(GEOID, year, pct_uninsured)
+}
+
+calc_wealth <- function(df) {
+  df |>
+    mutate(
+      median_hh_income   = median_hh_incomeE,
+      pct_poverty = (poverty_totalE / total_popE) * 100,
+      pct_unemployed = (unemployedE / labor_force_totalE) * 100
+    ) |>
+    select(GEOID, year, median_hh_income, pct_poverty, pct_unemployed)
+}
+
+calc_demographics <- function(df) {
+  df |>
+    group_by(GEOID) |>
+    arrange(year, .by_group = TRUE) |>
+    mutate(
+      minority_proportion = (total_popE - whiteE) / total_popE,
+      bachelor_proportion = (m_bachelor_degreeE + m_masters_degreeE + m_professionalE + m_doctorateE +
+        f_bachelor_degreeE + f_masters_degreeE + f_professionalE + f_doctorateE) / total_educatedE,
+      pct_pt_change_minority = if_else(
+        year == 2010, 
+        NA_real_, 
+        (minority_proportion - lag(minority_proportion)) * 100
+      ),
+      pct_pt_change_education = if_else(
+        year == 2010,
+        NA_real_,
+        (bachelor_proportion - lag(bachelor_proportion)) * 100
+      )
+    ) |>
+    select(GEOID, year, pct_pt_change_minority, pct_pt_change_education)
+}
+
 # 7. Compile and export the final ACS dataset with all derived variables
 dfdenominators <- raw_acs_data |>
   mutate(
@@ -356,13 +416,18 @@ dfcost_burden <- calc_cost_burden(raw_acs_data)
 dftenure <- calc_tenure(raw_acs_data)
 dfovercrowding <- calc_overcrowding(raw_acs_data)
 dffacilities <- calc_facilities(raw_acs_data)
-
+dfhealth <- calc_health(raw_acs_data)
+dfwealth <- calc_wealth(raw_acs_data)
+dfdemographics <- calc_demographics(raw_acs_data)
 clean_acs_data <- list(
   dfdenominators,
   dfcost_burden,
   dftenure,
   dfovercrowding,
-  dffacilities
+  dffacilities,
+  dfhealth,
+  dfwealth,
+  dfdemographics
 ) |>
   reduce(left_join, by = c("GEOID", "year")) |>
   mutate(

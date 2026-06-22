@@ -1,8 +1,11 @@
-# --- Housing Stability Index Calculation Script ---
+# --- Housing Stability Index Calculation ---
 # Household Strain Sub-domain: 50% cost-burden rate (-), 50% median tenure
 # Overcrowding Sub-domain: 50% overcrowding rate (-), 50% severe overcrowding rate (-)
 # Market Distress Sub-domain: 50% vacancy rate (-), 50% NOI per 1000 owners (-), 50% severe cost-burden rate (-)
 # Note: The HSI score is a normalized score from 0 to 100 (and a z-score for benchmarking), where higher scores indicate better housing stability. The sub-domain scores are averaged to create the overall HSI score.
+#
+# --- Displacement Risk Assessment Calculation ---
+# 50% change in minority population (-), 50% change in educational attainment (-)
 
 # Load necessary libraries
 library(tidyverse)
@@ -37,7 +40,9 @@ hsi_data <- merged_data |>
     idx_overcrowded         = scale_0_100(pct_overcrowded, "negative"),
     idx_sev_overcrowded     = scale_0_100(pct_severely_overcrowded, "negative"),
     idx_lacking_kitchens    = scale_0_100(pct_lacking_kitchen, "negative"),
-    idx_lacking_plumbing    = scale_0_100(pct_lacking_plumbing, "negative")
+    idx_lacking_plumbing    = scale_0_100(pct_lacking_plumbing, "negative"),
+    idx_change_minority     = scale_0_100(pct_pt_change_minority, "positive"),
+    idx_change_education    = scale_0_100(pct_pt_change_education, "positive")
   ) |>
   ungroup() |>
   
@@ -76,14 +81,21 @@ hsi_data <- merged_data |>
       missing_count >= 3 ~ NA_real_,
       is.nan(raw_hsi_score) ~ NA_real_,
       TRUE ~ raw_hsi_score
-    )
+    ),
+
+    # 5. Calculate the displacement risk score
+    displacement_risk = mean(c(
+      idx_change_minority,
+      idx_change_education
+    ), na.rm = TRUE)
   ) |>
   ungroup() |>
   
   # STEP C: Calculate the Z-Score relative to the year, strictly on the surviving tracts
   group_by(year) |>
   mutate(
-    hsi_zscore = (hsi_score - mean(hsi_score, na.rm = TRUE)) / sd(hsi_score, na.rm = TRUE)
+    hsi_zscore = (hsi_score - mean(hsi_score, na.rm = TRUE)) / sd(hsi_score, na.rm = TRUE),
+    displacement_risk_zscore = (displacement_risk - mean(displacement_risk, na.rm = TRUE)) / sd(displacement_risk, na.rm = TRUE)
   ) |>
   ungroup() |>
   
