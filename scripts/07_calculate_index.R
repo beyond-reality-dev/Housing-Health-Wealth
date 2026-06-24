@@ -1,11 +1,15 @@
 # --- Housing Stability Index Calculation ---
 # Household Strain Sub-domain: 50% cost-burden rate (-), 50% median tenure
 # Overcrowding Sub-domain: 50% overcrowding rate (-), 50% severe overcrowding rate (-)
-# Market Distress Sub-domain: 50% vacancy rate (-), 50% NOI per 1000 owners (-), 50% severe cost-burden rate (-)
+# Market Distress Sub-domain:33% vacancy rate (-), 33% NOI per 1000 owners (-), 33% severe cost-burden rate (-)
 # Note: The HSI score is a normalized score from 0 to 100 (and a z-score for benchmarking), where higher scores indicate better housing stability. The sub-domain scores are averaged to create the overall HSI score.
 #
 # --- Displacement Risk Assessment Calculation ---
-# 50% change in minority population (-), 50% change in educational attainment (-)
+# If a tract has a z-score for minority population change < -0.5, it receives 1 point.
+# If a tract has a z-score for educational attainment change > 1, it receives 1 point.
+# If a tract has a z-score for school withdrawal rate change > 0.5, it receives 1 point.
+# The total points are summed to create a displacement risk score (0-3), which is then categorized as follows:
+# 0 points: Stable | 1 point: Low | 2 points: Moderate | 3 points: Severe
 
 # Load necessary libraries
 library(tidyverse)
