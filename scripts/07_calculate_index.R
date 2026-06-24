@@ -87,6 +87,7 @@ hsi_data <- merged_data |>
   group_by(year) |>
   mutate(
     hsi_zscore = (hsi_score - mean(hsi_score, na.rm = TRUE)) / sd(hsi_score, na.rm = TRUE),
+    hsi_percentile = percent_rank(hsi_score) * 100
   ) |>
   ungroup() |>
   
