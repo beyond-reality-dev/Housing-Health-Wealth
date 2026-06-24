@@ -19,11 +19,9 @@ mapped_data <- md_tracts |>
 
 # 3. Define unique color palettes for each index
 pal_hsi <- colorNumeric(palette = "inferno", domain = c(0, 100), na.color = "grey")
-pal_dra <- colorNumeric(palette = "viridis", domain = c(0, 100), na.color = "grey")
 
 # 4. Initialize separate base maps
 hsi_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
-dra_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
 
 # 5. Loop through each year and add polygons to both maps
 target_years <- 2020:2024
@@ -43,36 +41,18 @@ for (current_year in target_years) {
         "<strong>Tract: </strong>", GEOID, "<br>",
         "<strong>Year: </strong>", current_year, "<br>",
         "<strong>HSI Score: </strong>", round(hsi_score, 1), "<br>",
-        "<strong>Z-Score: </strong>", round(hsi_zscore, 2)
+        "<strong>HSI Z-Score: </strong>", round(hsi_zscore, 2), "<br>",
+        "<strong>Displacement Risk: </strong>", displacement_category, "<br>",
+        "<em>Note: Displacement risk is based on changes in minority population, educational attainment, and school withdrawal rates and should be evaluated contextually.</em>"
       )
     )
 
-  # Populate Displacement Risk Map
-  dra_map <- dra_map |>
-    addPolygons(
-      data = year_data,
-      fillColor = ~pal_dra(displacement_risk),
-      weight = 0.3,
-      color = "white",
-      fillOpacity = 0.85,
-      group = as.character(current_year),
-      popup = ~paste0(
-        "<strong>Tract: </strong>", GEOID, "<br>",
-        "<strong>Year: </strong>", current_year, "<br>",
-        "<strong>Displacement Risk: </strong>", round(displacement_risk, 1), "<br>",
-        "<strong>Z-Score: </strong>", round(displacement_risk_zscore, 2)
-      )
-    )
 }
 
 # 6. Add controls and legends to their respective maps
 hsi_map <- hsi_map |>
   addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
   addLegend(pal = pal_hsi, values = c(0, 100), title = "Housing Stability Index", position = "bottomright")
-
-dra_map <- dra_map |>
-  addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
-  addLegend(pal = pal_dra, values = c(0, 100), title = "Displacement Risk Assessment", position = "bottomright")
 
 # 7. Construct a Bootstrap layout with custom JS to fix tab-switching rendering bugs
 dashboard_html <- tags$html(
@@ -98,14 +78,10 @@ dashboard_html <- tags$html(
     tags$ul(class = "nav nav-tabs", id = "indexTabs", role = "tablist", style = "height: 50px; background-color: #f8f9fa;",
       tags$li(class = "nav-item",
         tags$a(class = "nav-link active", id = "hsi-tab", `data-toggle` = "tab", href = "#hsi-panel", role = "tab", "Housing Stability (HSI)")
-      ),
-      tags$li(class = "nav-item",
-        tags$a(class = "nav-link", id = "dra-tab", `data-toggle` = "tab", href = "#dra-panel", role = "tab", "Displacement Risk (DRA)")
       )
     ),
     tags$div(class = "tab-content", id = "indexTabsContent",
-      tags$div(class = "tab-pane fade show active", id = "hsi-panel", role = "tabpanel", hsi_map),
-      tags$div(class = "tab-pane fade", id = "dra-panel", role = "tabpanel", dra_map)
+      tags$div(class = "tab-pane fade show active", id = "hsi-panel", role = "tabpanel", hsi_map)
     )
   )
 )

@@ -12,6 +12,7 @@ This repository contains code and documentation for the Housing, Health, and Wea
   - [NOI Data](#noi-data)
   - [Vacancy Data](#vacancy-data)
   - [Subsidized Housing Data](#subsidized-housing-data)
+  - [School Enrollment Data](#school-enrollment-data)
 - [Usage](#usage)
   - [Requirements](#requirements)
   - [Running the Scripts](#running-the-scripts)
@@ -55,6 +56,10 @@ Note: All data sources are at the 2020 census tract level, which is the smallest
 
 *Description:* The subsidized housing data is sourced from the National Housing Preservation Database (NHPD) which draws from a variety of administrative datasets, including the HUD Picture of Subsidized Households. This dataset provides information on the number of subsidized housing units at the census tract level.
 
+### School Enrollment Data
+*Years of availability:* 2009-2025
+*Description:* The school enrollment data is sourced from the Maryland State Department of Education (MSDE) and provides information on the number of students who annually enter and withdraw from public schools at the census tract level. Since school attendance boundaries do not align with census tract boundaries, the data is crosswalked to the 2020 census tract level using a weighted average based on the proportion of area inside each school boundary that is contained by each census tract.
+
 ## Usage
 
 ### Requirements
@@ -71,26 +76,32 @@ To run the scripts in this repository, you will need the following software, pac
   - Download the 2019 "2010-2020" USPS tract crosswalk from the [HUD website](https://www.huduser.gov/portal/datasets/census_tract_crosswalk.html) and save the file as `tract_crosswalk.xlsx` in the `data/raw/vacancy` directory.
 - National Housing Preservation Database (NHPD) subsidized housing data:
   - Download the latest NHPD data from the [NHPD website](https://preservationdatabase.org) ("All Subsidies") and save the file as `nhpd_subsidies.xlsx` in the `data/raw/subsidized/` directory.
+- Maryland State Department of Education (MSDE) school enrollment data:
+  - Download the student mobility data from the [MSDE website](https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datadownload) for each year and save the files as `Student_Mobility_YYYY.csv` in the `data/raw/msde/` directory.
 
 ### Running the Scripts
 1. Clone the repository to your local machine.
-2. Open the R project file (`housing_health_wealth.Rproj`) in RStudio.
+2. Open the R project file (`housing_health_wealth.Rproj`) in RStudio or your preferred R environment.
 3. Run the scripts in the following order:
    - `scripts/01_acs_pull.R`: Pulls and processes ACS data for the relevant years.
    - `scripts/02_noi_pull.R`: Pulls and processes NOI data, including imputation for suppressed values.
    - `scripts/03_vacancy_pull.R`: Pulls and processes USPS/HUD vacancy data, including crosswalking to current census tract boundaries.
    - `scripts/04_subsidized_pull.R`: Pulls and processes NHPD subsidized housing data, including crosswalking to current census tract boundaries.
-   - `scripts/05_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
-   - `scripts/06_calculate_index.R`: Calculates the Housing Stability Index (HSI).
-   - `scripts/07_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
-4. After running the scripts, the processed data will be saved in the `data/clean/` directory. You can then proceed with analysis and visualization using the merged dataset.
-5. Refer to the `output/` directory for generated tables and figures based on the processed data.
+   - `scripts/05_mobility_pull.R`: Pulls and processes MSDE student mobility data, including crosswalking to current census tract boundaries.
+   - `scripts/06_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
+   - `scripts/07_calculate_index.R`: Calculates the Housing Stability Index (HSI).
+   - `scripts/08_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
+4. These may be run together from the `scripts/run_all.R` script, which will execute all the above scripts in order. Note that this may take some time to run, and may need to be repeated if you lose internet connection.
+5. After running the scripts, the processed data will be saved in the `data/clean/` directory. You can then proceed with analysis and visualization using the merged dataset.
+6. Refer to the `output/` directory for generated tables and figures based on the processed data.
 
 ## Methodology
 
 ## Bibliography
 
 Maryland Department of Labor. (2026). *Maryland Notices of Intent to Foreclose by Census Tract* [Data set]. https://opendata.maryland.gov/Housing/Maryland-Notices-of-Intent-to-Foreclose-by-Census-/nme2-wik5/about_data
+
+Maryland State Department of Education. (2026). *Student Mobility Data* [Data set]. https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datadownload
 
 Public and Affordable Housing Research Corporation & National Low Income Housing Coalition. (2026). *National Housing Preservation Database* [Data set]. https://preservationdatabase.org
 

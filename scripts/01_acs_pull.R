@@ -386,14 +386,14 @@ calc_demographics <- function(df) {
       bachelor_proportion = (m_bachelor_degreeE + m_masters_degreeE + m_professionalE + m_doctorateE +
         f_bachelor_degreeE + f_masters_degreeE + f_professionalE + f_doctorateE) / total_educatedE,
       pct_pt_change_minority = if_else(
-        year == 2010, 
-        NA_real_, 
-        (minority_proportion - lag(minority_proportion)) * 100
+        year <= 2014, 
+        NA_real_,
+        (minority_proportion - lag(minority_proportion, n = 5)) * 100
       ),
       pct_pt_change_education = if_else(
-        year == 2010,
+        year <= 2014,
         NA_real_,
-        (bachelor_proportion - lag(bachelor_proportion)) * 100
+        (bachelor_proportion - lag(bachelor_proportion, n = 5)) * 100
       )
     ) |>
     select(GEOID, year, pct_pt_change_minority, pct_pt_change_education)

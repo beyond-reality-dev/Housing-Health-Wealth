@@ -1,0 +1,8 @@
+source("01_acs_pull.R")
+source("02_noi_pull.R")
+source("03_vacancy_pull.R")
+source("04_subsidized_pull.R")
+source("05_mobility_pull.R")
+source("06_merge_data.R")
+source("07_calculate_index.R")
+source("08_visualize_data.R")

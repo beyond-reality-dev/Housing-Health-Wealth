@@ -40,9 +40,7 @@ hsi_data <- merged_data |>
     idx_overcrowded         = scale_0_100(pct_overcrowded, "negative"),
     idx_sev_overcrowded     = scale_0_100(pct_severely_overcrowded, "negative"),
     idx_lacking_kitchens    = scale_0_100(pct_lacking_kitchen, "negative"),
-    idx_lacking_plumbing    = scale_0_100(pct_lacking_plumbing, "negative"),
-    idx_change_minority     = scale_0_100(pct_pt_change_minority, "positive"),
-    idx_change_education    = scale_0_100(pct_pt_change_education, "positive")
+    idx_lacking_plumbing    = scale_0_100(pct_lacking_plumbing, "negative")
   ) |>
   ungroup() |>
   
@@ -81,13 +79,7 @@ hsi_data <- merged_data |>
       missing_count >= 3 ~ NA_real_,
       is.nan(raw_hsi_score) ~ NA_real_,
       TRUE ~ raw_hsi_score
-    ),
-
-    # 5. Calculate the displacement risk score
-    displacement_risk = mean(c(
-      idx_change_minority,
-      idx_change_education
-    ), na.rm = TRUE)
+    )
   ) |>
   ungroup() |>
   
@@ -95,14 +87,36 @@ hsi_data <- merged_data |>
   group_by(year) |>
   mutate(
     hsi_zscore = (hsi_score - mean(hsi_score, na.rm = TRUE)) / sd(hsi_score, na.rm = TRUE),
-    displacement_risk_zscore = (displacement_risk - mean(displacement_risk, na.rm = TRUE)) / sd(displacement_risk, na.rm = TRUE)
   ) |>
   ungroup() |>
   
   # Clean up: Drop the temporary calculation columns
   select(-raw_hsi_score, -missing_count)
 
-# 3. Save the final HSI dataset to a CSV file
+# 3. Compute the Displacement Risk Assessment
+hsi_data <- hsi_data |>
+  group_by(year) |>
+  mutate(
+    zscore_change_minority = (pct_pt_change_minority - mean(pct_pt_change_minority, na.rm = TRUE)) / sd(pct_pt_change_minority, na.rm = TRUE),
+    zscore_change_education = (pct_pt_change_education - mean(pct_pt_change_education, na.rm = TRUE)) / sd(pct_pt_change_education, na.rm = TRUE),
+    zscore_change_churn = (change_in_churn - mean(change_in_churn, na.rm = TRUE)) / sd(change_in_churn, na.rm = TRUE)
+  ) |>
+  ungroup() |>
+  mutate(
+    displacement_score = 
+    coalesce(as.integer(zscore_change_minority < -0.5), 0) +
+    coalesce(as.integer(zscore_change_education > 1), 0) +
+    coalesce(as.integer(zscore_change_churn > 0.5), 0),
+    displacement_category = case_when(
+      displacement_score == 0 ~ "Stable",
+      displacement_score == 1 ~ "Low",
+      displacement_score == 2 ~ "Moderate",
+      displacement_score == 3 ~ "Severe",
+      TRUE ~ "Unknown"
+    )
+  )
+
+# 4. Save the final HSI dataset to a CSV file
 output_file <- "../data/clean/hsi_data.csv"
 dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
 if (file.exists(output_file)) {
