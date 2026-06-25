@@ -13,6 +13,7 @@ This repository contains code and documentation for the Housing, Health, and Wea
   - [Vacancy Data](#vacancy-data)
   - [Subsidized Housing Data](#subsidized-housing-data)
   - [School Enrollment Data](#school-enrollment-data)
+  - [Health Data](#health-data)
 - [Usage](#usage)
   - [Requirements](#requirements)
   - [Running the Scripts](#running-the-scripts)
@@ -60,6 +61,10 @@ Note: All data sources are at the 2020 census tract level, which is the smallest
 *Years of availability:* 2009-2025
 *Description:* The school enrollment data is sourced from the Maryland State Department of Education (MSDE) and provides information on the number of students who annually enter and withdraw from public schools at the census tract level. Since school attendance boundaries do not align with census tract boundaries, the data is crosswalked to the 2020 census tract level using a weighted average based on the proportion of area inside each school boundary that is contained by each census tract.
 
+### Health Data
+*Years of availability:* 2024
+*Description:* The health data is sourced from the Maryland Department of the Environment and provides information on low birth weight, asthma, and myocardial infarction rates at the census tract level. This data is used to construct a snapshot of the Health Outcomes Index, which in the future will be expanded to multiple years of data as it becomes available.
+
 ## Usage
 
 ### Requirements
@@ -88,9 +93,11 @@ To run the scripts in this repository, you will need the following software, pac
    - `scripts/03_vacancy_pull.R`: Pulls and processes USPS/HUD vacancy data, including crosswalking to current census tract boundaries.
    - `scripts/04_subsidized_pull.R`: Pulls and processes NHPD subsidized housing data, including crosswalking to current census tract boundaries.
    - `scripts/05_mobility_pull.R`: Pulls and processes MSDE student mobility data, including crosswalking to current census tract boundaries.
-   - `scripts/06_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
-   - `scripts/07_calculate_index.R`: Calculates the Housing Stability Index (HSI).
-   - `scripts/08_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
+   - `scripts/06_health_pull.R`: Pulls and processes health outcome data, including low birth weight, asthma, and myocardial infarction rates.
+   - `scripts/07_wealth_pull.R`: Pulls and processes wealth accumulation data, including homeownership rates, home appreciation rates, and mortgage denial rates.
+   - `scripts/08_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
+   - `scripts/09_calculate_index.R`: Calculates the Housing Stability Index (HSI).
+   - `scripts/10_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
 4. These may be run together from the `scripts/run_all.R` script, which will execute all the above scripts in order. Note that this may take some time to run, and may need to be repeated if you lose internet connection.
 5. After running the scripts, the processed data will be saved in the `data/clean/` directory. You can then proceed with analysis and visualization using the merged dataset.
 6. Refer to the `output/` directory for generated tables and figures based on the processed data.
@@ -98,6 +105,8 @@ To run the scripts in this repository, you will need the following software, pac
 ## Methodology
 
 ## Bibliography
+
+Maryland Department of the Environment. (2026). *MD EnviroScreen* [Data set]. https://mdgeodata.md.gov/imap/rest/services/Environment/MD_EnviroScreen/MapServer
 
 Maryland Department of Labor. (2026). *Maryland Notices of Intent to Foreclose by Census Tract* [Data set]. https://opendata.maryland.gov/Housing/Maryland-Notices-of-Intent-to-Foreclose-by-Census-/nme2-wik5/about_data
 
@@ -107,10 +116,10 @@ Public and Affordable Housing Research Corporation & National Low Income Housing
 
 Schroeder, J., Van Riper, D., Manson, S., Knowles, K., Kugler, T., Roberts, F., & Ruggles, S. (2025). *IPUMS National Historical Geographic Information System: Version 20.0* [Data set]. http://doi.org/10.18128/D050.V20.0 
 
-U.S. Census Bureau. (2016–2024). *American Community Survey 5-Year Estimates* [Data set]. U.S. Department of Commerce. https://www.data.census.gov
+U.S. Census Bureau. (2010–2024). *American Community Survey 5-Year Estimates* [Data set]. U.S. Department of Commerce. https://www.data.census.gov
 
 U.S. Department of Agriculture, Economic Research Service. (2026). *Rural-Urban Commuting Area Codes* [Data set]. https://www.ers.usda.gov/data-products/rural-urban-commuting-area-codes/
 
-U.S. Department of Housing and Urban Development (HUD). (2026). *HUD Aggregated USPS administrative data on address vacancies (2008–2025)* [Data set]. Office of Policy Development and Research. https://www.huduser.gov/portal/datasets/usps.html
+U.S. Department of Housing and Urban Development. (2026). *HUD Aggregated USPS administrative data on address vacancies (2008–2025)* [Data set]. Office of Policy Development and Research. https://www.huduser.gov/portal/datasets/usps.html
 
 U.S. Department of Housing and Urban Development. (2019). *2010-2020 HUD USPS Tract Crosswalk* [Data set]. Office of Policy Development and Research. https://www.huduser.gov/portal/datasets/census_tract_crosswalk.html

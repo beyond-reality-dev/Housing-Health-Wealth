@@ -56,7 +56,7 @@ vars_base <- c(
   total_pop          = "B01003_001", total_households   = "B25003_001",
   total_owners_m     = "B25081_001", total_owners_nm    = "B25081_008",
   total_renters      = "B25003_003", vacant_count       = "B25004_001",
-  vacant_seasonal    = "B25004_006",
+  vacant_seasonal    = "B25004_006", total_bldgs        = "B25024_001",
   
   # Cost Burden: Renters
   renter_total       = "B25070_001", renter_30_34       = "B25070_007",
@@ -124,7 +124,8 @@ bldg_bins_2010_2014 <- c(
 )
 
 # Variable groups for API calls
-vars_2020_plus     <- c(vars_base, vars_health, vars_wealth, med_tenure = "B25039_001", med_building_age = "B25035_001")
+vars_2020_plus     <- c(vars_base, vars_health, vars_wealth, med_tenure = "B25039_001", med_building_age = "B25035_001",        
+                        bldg_bins_2015_2019)
 vars_2015_2019     <- c(vars_base, vars_health, vars_wealth, med_tenure = "B25039_001", bldg_bins_2015_2019)
 vars_2010_2014     <- c(vars_base, med_tenure = "B25039_001", bldg_bins_2010_2014)
 
@@ -169,7 +170,14 @@ pull_acs_data <- function(year, stab) {
     return(
       get_acs(geography = "tract", state = "MD", year = year,
               variables = vars_2020_plus, output = "wide", show_call = FALSE) |>
-        mutate(year = year)
+        mutate(
+          year = year,
+          pct_built_pre1980 = (
+            built_1970_1979E + built_1960_1969E + built_1950_1959E +
+            built_1940_1949E + built_1939_earlierE
+          ) / total_bldgsE * 100
+          ) |>
+          select(-starts_with("built_"))
     )
   }
   
@@ -273,7 +281,11 @@ pull_acs_data <- function(year, stab) {
             built_1950_1959E,  built_1940_1949E, built_1939_earlierE
           ),
           ~ calc_interpolated_median(c(...), bin_defs_2010_2014)
-        )
+        ),
+        pct_built_pre1980 = (
+        built_1970_1979E + built_1960_1969E + built_1950_1959E +
+        built_1940_1949E + built_1939_earlierE
+      ) / total_bldgsE * 100
       )
   } else {
     combined <- combined |>
@@ -286,7 +298,11 @@ pull_acs_data <- function(year, stab) {
             built_1939_earlierE
           ),
           ~ calc_interpolated_median(c(...), bin_defs_2015_2019)
-        )
+        ),
+        pct_built_pre1980 = (
+        built_1970_1979E + built_1960_1969E + built_1950_1959E +
+        built_1940_1949E + built_1939_earlierE
+      ) / total_bldgsE * 100
       )
   }
 
@@ -334,7 +350,7 @@ calc_tenure <- function(df) {
       med_tenure = year - clean_med_tenure,
       med_building_age = year - clean_med_bldg
     ) |>
-    select(GEOID, year, med_tenure, med_building_age)
+    select(GEOID, year, med_tenure, med_building_age, pct_built_pre1980)
 }
 
 calc_overcrowding <- function(df) {
