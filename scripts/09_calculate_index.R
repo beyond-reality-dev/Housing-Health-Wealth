@@ -33,9 +33,6 @@ scale_0_100 <- function(x, direction = "positive") {
     return(((x - min_x) / (max_x - min_x)) * 100)
   }
 }
-percentile_rank <- function(x) {
-  return(rank(x, na.last = "keep") / sum(!is.na(x)))
-}
 
 # 2. Compute the Housing Stability Index
 merged_data <- read_csv("../data/clean/merged_panel_data.csv")
@@ -54,8 +51,8 @@ hsi_data <- merged_data |>
     idx_lacking_kitchens      = scale_0_100(pct_lacking_kitchen, "negative"),
     idx_lacking_plumbing      = scale_0_100(pct_lacking_plumbing, "negative"),
     idx_bldg_age              = scale_0_100(med_building_age, "negative"),
-    idx_uninsurance           = percentile_rank(pct_uninsured),
-    idx_pre_1980_housing      = percentile_rank(pct_built_pre1980),
+    idx_uninsurance           = percent_rank(pct_uninsured) * 100,
+    idx_pre_1980_housing      = percent_rank(pct_built_pre1980) * 100,
     idx_low_birth_weight      = percentile_low_birth_weight,
     idx_asthma                = percentile_asthma,
     idx_myocardial_infarction = percentile_myocardial_infarction
@@ -86,14 +83,12 @@ hsi_data <- merged_data |>
       idx_noi,
       idx_sev_cost_burden
     ), na.rm = TRUE),
-
-    temp_score_a = mean(c(idx_cost_burden, idx_sev_cost_burden, idx_vacancy, idx_noi), na.rm = TRUE),
-    temp_score_b = mean(c(idx_overcrowded, idx_sev_overcrowded, idx_tenure, idx_bldg_age), na.rm = TRUE),
     
     # 3. Calculate the preliminary overall score
     raw_hsi_score = mean(c(
-      temp_score_a,
-      temp_score_b
+      score_household_strain,
+      score_overcrowding,
+      score_market_distress
       ), na.rm = TRUE),
 
     # 4. If a tract is missing 3 or more variables, we force the final score to NA.
@@ -128,8 +123,8 @@ hsi_data <- hsi_data |>
   mutate(
     displacement_score = 
     coalesce(as.integer(zscore_change_minority < -0.5), 0) +
-    coalesce(as.integer(zscore_change_education > 1), 0) +
-    coalesce(as.integer(zscore_change_churn > 0.5), 0),
+    coalesce(as.integer(zscore_change_education > 0.5), 0) +
+    coalesce(as.integer(zscore_change_churn > 1), 0),
     displacement_category = case_when(
       displacement_score == 0 ~ "Stable",
       displacement_score == 1 ~ "Low",
@@ -143,6 +138,7 @@ hsi_data <- hsi_data |>
 hsi_data <- hsi_data |>
   rowwise() |>
   mutate(
+    missing_health_metrics = sum(is.na(c(idx_uninsurance, idx_pre_1980_housing, idx_low_birth_weight, idx_asthma, idx_myocardial_infarction))),
     health_outcomes_index = mean(c(
       idx_uninsurance,
       idx_pre_1980_housing,
@@ -150,10 +146,12 @@ hsi_data <- hsi_data |>
       idx_asthma,
       idx_myocardial_infarction
     ), na.rm = TRUE),
-    health_outcomes_index = 100 - health_outcomes_index,
-    hoi_score = percentile_rank(health_outcomes_index)
+    health_outcomes_index = if_else(missing_health_metrics >= 3, NA_real_, 100 - health_outcomes_index),
   ) |>
-  ungroup()
+  ungroup() |>
+  mutate(
+    hoi_score = percent_rank(health_outcomes_index) * 100
+  )
 
 # 5. Save the final HSI dataset to a CSV file
 output_file <- "../data/clean/hsi_data.csv"

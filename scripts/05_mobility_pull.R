@@ -2,7 +2,6 @@
 library(sf)
 library(dplyr)
 library(tidycensus)
-install.packages("purrr", repos = "https://cloud.r-project.org")
 library(purrr)
 library(readr)
 

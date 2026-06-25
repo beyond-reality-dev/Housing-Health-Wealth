@@ -115,7 +115,7 @@ dashboard_html <- tags$html(
         tags$a(class = "nav-link active", id = "hsi-tab", `data-toggle` = "tab", href = "#hsi-panel", role = "tab", "Housing Stability Index (HSI)")
       ),
       tags$li(class = "nav-item",
-        tags$a(class = "nav-link", id = "health-tab", `data-toggle` = "tab", href = "#health-panel", role = "tab", "Health Outcomes Index")
+        tags$a(class = "nav-link", id = "health-tab", `data-toggle` = "tab", href = "#health-panel", role = "tab", "Health Outcomes Index (HOI)")
       )
     ),
     tags$div(class = "tab-content", id = "indexTabsContent",
