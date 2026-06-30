@@ -13,6 +13,8 @@ This repository contains code and documentation for the Housing, Health, and Wea
   - [Subsidized Housing Data](#subsidized-housing-data)
   - [School Enrollment Data](#school-enrollment-data)
   - [Health Data](#health-data)
+  - [HMDA Data](#hmda-data)
+  - [CRA Data](#cra-data)
 - [Usage](#usage)
   - [Requirements](#requirements)
   - [Running the Scripts](#running-the-scripts)
@@ -25,6 +27,7 @@ This repository contains code and documentation for the Housing, Health, and Wea
   - [Subsidized Housing Data](#subsidized-housing-data-1)
   - [School Mobility Data](#school-mobility-data)
   - [Maryland Health Data](#maryland-health-data)
+  - [Lending Data](#lending-data)
   - [Index Construction](#index-construction)
 - [Contact](#contact)
 - [Bibliography](#bibliography)
@@ -84,6 +87,14 @@ Note: All data sources are at the 2020 census tract level, which is the smallest
 *Years of availability:* 2024
 *Description:* The health data is sourced from the Maryland Department of the Environment and provides information on low birth weight, asthma, and myocardial infarction rates at the census tract level. This data is used to construct a snapshot of the Health Outcomes Index, which in the future will be expanded to multiple years of data as it becomes available.
 
+### HMDA Data
+*Years of availability:* 2018-2024
+*Description:* The Home Mortgage Disclosure Act (HMDA) data is sourced from the Federal Financial Institutions Examination Council (FFIEC) and provides information on mortgage origination and denial rates at the census tract level. Prior to 2022, HMDA data is reported according to 2010 census tract boundaries, requiring a crosswalk to align with current tract boundaries for analysis.
+
+### CRA Data
+*Years of availability:* 2018-2024
+*Description:* The Community Reinvestment Act (CRA) data is sourced from the Federal Financial Institutions Examination Council (FFIEC) and provides information on small business lending activity at the census tract level. Prior to 2022, CRA data is reported according to 2010 census tract boundaries, requiring a crosswalk to align with current tract boundaries for analysis.
+
 ## Usage
 
 ### Requirements
@@ -103,6 +114,8 @@ To run the scripts in this repository, you will need the following software, pac
   - Download the latest NHPD data from the [NHPD website](https://preservationdatabase.org) ("All Subsidies") and save the file as `nhpd_subsidies.xlsx` in the `data/raw/subsidized/` directory.
 - Maryland State Department of Education (MSDE) school enrollment data:
   - Download the student mobility data from the [MSDE website](https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datadownload) for each year and save the files as `Student_Mobility_YYYY.csv` in the `data/raw/msde/` directory.
+- Community Reinvestment Act (CRA) data:
+  - Download the CRA data from the [FFIEC website](https://www.ffiec.gov/cra/flat-files.htm) for each year and save the files as `cra_data_YYYY.zip` in the `data/raw/lending/` directory.
 
 ### Running the Scripts
 
@@ -116,7 +129,7 @@ To run the scripts in this repository, you will need the following software, pac
    - `scripts/04_subsidized_pull.R`: Pulls and processes NHPD subsidized housing data, including crosswalking to current census tract boundaries.
    - `scripts/05_mobility_pull.R`: Pulls and processes MSDE student mobility data, including crosswalking to current census tract boundaries.
    - `scripts/06_health_pull.R`: Pulls and processes health outcome data, including low birth weight, asthma, and myocardial infarction rates.
-   - `scripts/07_wealth_pull.R`: Pulls and processes wealth accumulation data, including homeownership rates, home appreciation rates, and mortgage denial rates.
+   - `scripts/07_lending_pull.R`: Pulls and processes lending data, including mortgage origination rates and small business loan activity, and crosswalks pre-2022 data to current census tract boundaries.
    - `scripts/08_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
    - `scripts/09_calculate_index.R`: Calculates the Housing Stability Index (HSI).
    - `scripts/10_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
@@ -138,6 +151,7 @@ The following warnings are expected and can be safely ignored:
 | `05_mobility_pull.R` | `attribute variables are assumed to be spatially constant` / `There were 2 warnings in 'mutate()'` | State and county-wide data is ignored during tract crosswalk |
 | `09_calculate_index.R` | `There were 34 warnings in 'mutate()'` | Missing values in NOI data |
 | `10_visualize_data.R` | `sf layer has inconsistent datum` | Slight CRS mismatch between Maryland boundary and tract shapefiles; does not affect outputs |
+| `07_lending_pull.R` | `There were 50 or more warnings` | Missing values in HMDA and CRA data |
  
 If you encounter errors beyond these, check that all required data files are present and correctly named, and that your Census API key is valid.
 
@@ -203,6 +217,14 @@ The raw MSDE enrollment data suppresses small values using symbols (`<= 5.0`, `*
 #### Limitations <!-- omit in toc -->
 Currently, data on low birth weight, asthma, and myocardial infarction is only available for 2024. As additional years of data become available, the Health Outcomes Index will be expanded to include multiple years of data, but for now the index functions as a snapshot and proof of concept for the HHW framework.
 
+### Lending Data
+
+#### Geographic Harmonization (2010 → 2020 Census Tracts) <!-- omit in toc -->
+The lending data uses the same methodology as the ACS data for harmonizing pre-2020 data to 2020 census tract boundaries. Since tract boundaries changed between 2010 and 2020, pre-2020 ACS data is mapped to 2020 geographies using the Census Bureau's tract relationship file. Tracts are classified into stability categories—stable, minor boundary change (less than 1% of total area), merge (many-to-one), split (one-to-many), and complex change—based on the share of land area exchanged between 2010 and 2020 tract pairs. Only stable, minor, and merge cases are carried forward for pre-2020 years; splits and complex changes are dropped and left as NA, since reliable aggregation isn't possible. Merges with more than two source tracts are also excluded as too unreliable to aggregate.
+
+#### Data Cleaning and Filtering <!-- omit in toc -->
+HMDA records are pulled year-by-year from the CFPB's data browser API, filtered to Maryland, with census tract codes zero-padded to 11 digits. CRA aggregate small-business lending data (table A11) are read from fixed-width `.dat` files extracted from yearly zip archives, with positions mapped to fields like loan type, tract, and loan counts/amounts by size category. All rate denominators come from ACS total household counts joined by tract and year; tracts/years with missing or zero household counts are coded as missing rather than zero to avoid spurious rates, while missing loan counts (no HMDA/CRA records for a tract-year) are treated as zero loans.
+
 ### Index Construction
 
 #### Housing Stability Index (HSI) <!-- omit in toc -->
@@ -243,6 +265,10 @@ Scores map to risk categories: 0 → Stable, 1 → Low, 2 → Moderate, 3 → Se
 This project is maintained by the Division of Just Communities at the Maryland Department of Housing and Community Development. For questions about the methodology, data access, or to report issues, contact Scott Pawley at his [LinkedIn profile](https://www.linkedin.com/in/scott-pawley/), the team at the Just Communities' [website](https://dhcd.maryland.gov/Just-Communities/Pages/default.aspx), or open an issue in this repository.
 
 ## Bibliography
+
+Federal Financial Institutions Examination Council. (2026). *Home Mortgage Disclosure Act (HMDA) Data* [Data set]. https://www.ffiec.gov/hmda
+
+Federal Financial Institutions Examination Council. (2026). *Community Reinvestment Act (CRA) Data* [Data set]. https://www.ffiec.gov/cra/flat-files.htm
 
 Maryland Department of the Environment. (2026). *MD EnviroScreen* [Data set]. https://mdgeodata.md.gov/imap/rest/services/Environment/MD_EnviroScreen/MapServer
 
