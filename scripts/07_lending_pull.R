@@ -11,7 +11,7 @@ for (year in target_years) {
       year = year,
       census_tract = str_pad(census_tract, width = 11, side = "left", pad = "0")
     ) |>
-    select(year, census_tract, action_taken, loan_purpose, loan_to_value_ratio, occupancy_type, derived_dwelling_category)
+    select(year, census_tract, action_taken, loan_purpose, loan_amount, loan_to_value_ratio, occupancy_type, derived_dwelling_category)
   
   output_file <- paste0("../data/raw/lending/hmda_data_", year, ".csv")
   dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
@@ -81,7 +81,7 @@ hmda_raw <- target_years |>
     year      = as.integer(year),
     GEOID     = as.character(census_tract)
   ) |>
-  select(year, GEOID, action_taken, loan_purpose, loan_to_value_ratio, occupancy_type, derived_dwelling_category)
+  select(year, GEOID, action_taken, loan_purpose, loan_amount, loan_to_value_ratio, occupancy_type, derived_dwelling_category)
 
 cra_raw <- target_years |>
   map_dfr(~ read_fwf(paste0("../data/raw/lending/cra", .x, "_Aggr_A11.dat"),
@@ -156,6 +156,7 @@ hmda <- hmda_data |>
   mutate(loan_to_value_ratio = as.numeric(loan_to_value_ratio)) |>
   summarise(
     home_purchase_loans  = sum(loan_purpose == 1, na.rm = TRUE),
+    loan_totals          = sum(loan_amount, na.rm = TRUE),
     refinance_loans      = sum(loan_purpose == 31, na.rm = TRUE),
     purchase_denials     = sum(loan_purpose == 1 & action_taken == 3, na.rm = TRUE),
     refinance_denials    = sum(loan_purpose == 31 & action_taken == 3, na.rm = TRUE),
@@ -174,7 +175,8 @@ hmda <- hmda_data |>
     mortgage_origination_rate  = if_else(is.na(total_households) | total_households == 0, NA_real_, originated_loans / total_households),
     refinance_origination_rate = if_else(is.na(total_households) | total_households == 0, NA_real_, refinance_loans / total_households),
     mortgage_denial_rate       = if_else(home_purchase_loans == 0, NA_real_, purchase_denials / home_purchase_loans),
-    refinance_denial_rate      = if_else(refinance_loans == 0, NA_real_, refinance_denials / refinance_loans)
+    refinance_denial_rate      = if_else(refinance_loans == 0, NA_real_, refinance_denials / refinance_loans),
+    home_loan_amount_per_household = if_else(is.na(total_households) | total_households == 0, NA_real_, loan_totals / total_households)
   )
 
 cra <- cra_data |>
@@ -204,7 +206,7 @@ cra <- cra_data |>
   select(year, GEOID, small_business_loan_rate, small_business_loan_amount_per_household)
 combined_data <- hmda |>
   left_join(cra, by = c("GEOID", "year")) |>
-  select(year, GEOID, mortgage_origination_rate, refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, small_business_loan_rate, small_business_loan_amount_per_household, median_loan_to_value)
+  select(year, GEOID, mortgage_origination_rate, refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, home_loan_amount_per_household, small_business_loan_rate, small_business_loan_amount_per_household, median_loan_to_value)
 
 # 5. Save the final dataset to a CSV file
 output_file <- "../data/clean/lending_data.csv"

@@ -9,6 +9,7 @@ clean_subsidized_data <- read_csv("../data/clean/subsidized_data.csv")
 clean_mobility_data <- read_csv("../data/clean/enrollment_churn.csv")
 clean_health_data <- read_csv("../data/clean/health_data.csv")
 clean_lending_data <- read_csv("../data/clean/lending_data.csv")
+clean_property_data <- read_csv("../data/clean/property_data.csv")
 
 
 # 2. Merge the cleaned ACS and NOI datasets on GEOID and year
@@ -17,8 +18,9 @@ merged_data <- clean_acs_data |>
   left_join(clean_vacancy_data |> select(GEOID, year, vacancy_rate), by = c("GEOID", "year")) |>
   left_join(clean_subsidized_data |> select(GEOID, year, pct_subsidized_units), by = c("GEOID", "year")) |>
   left_join(clean_mobility_data |> select(GEOID, year, withdrawal_rate, change_in_churn), by = c("GEOID", "year")) |>
-  left_join(clean_health_data |> select(GEOID, year, percentile_low_birth_weight, percentile_asthma, percentile_myocardial_infarction), by = c("GEOID", "year"))
-  left_join(clean_lending_data |> select(GEOID, year, mortgage_origination_rate, refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, small_business_loan_rate, small_business_loan_amount_per_household, median_loan_to_value), by = c("GEOID", "year"))
+  left_join(clean_health_data |> select(GEOID, year, percentile_low_birth_weight, percentile_asthma, percentile_myocardial_infarction), by = c("GEOID", "year")) |>
+  left_join(clean_lending_data |> select(GEOID, year, mortgage_origination_rate, refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, home_loan_amount_per_household, small_business_loan_rate, small_business_loan_amount_per_household, median_loan_to_value), by = c("GEOID", "year")) |>
+  left_join(clean_property_data |> select(GEOID, year, median_sale_price, appreciation_rate), by = c("GEOID", "year"))
 
 # 3. Import Just Communities designation data (if a GEOID matches, set new variable just_community = 1)
 url <- "https://mdgeodata.md.gov/imap/rest/services/BusinessEconomy/MD_HousingDesignatedAreas/FeatureServer/9/query?where=1%3D1&outFields=*&outSR=4326&f=json"

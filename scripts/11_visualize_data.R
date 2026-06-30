@@ -32,10 +32,12 @@ mapped_data <- md_tracts |>
 # 4. Define unique color palettes for each index
 pal_hsi <- colorNumeric(palette = "inferno", domain = c(0, 100), na.color = "grey")
 pal_health <- colorNumeric(palette = "viridis", domain = c(0, 100), na.color = "grey")
+pal_wealth <- colorNumeric(palette = "plasma", domain = c(0, 100), na.color = "grey")
 
 # 5. Initialize separate base maps
 hsi_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
 health_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
+wealth_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
 
 # 6. Loop through each year and add polygons to both maps
 target_years <- 2020:2024
@@ -79,6 +81,24 @@ for (current_year in target_years) {
         "<em>Note: The Health Outcomes Index is based on uninsurance rates, pre-1980 housing (as a proxy for lead paint risk), low birth weight, asthma, and myocardial infarction rates.</em>"
       )
     )
+
+    # Populate Wealth Accumulation Map
+    wealth_map <- wealth_map |>
+      addPolygons(
+        data = year_data,
+        fillColor = ~pal_wealth(wealth_score),
+        weight = 0.3,
+        color = "white",
+        fillOpacity = 0.85,
+        group = as.character(current_year),
+        popup = ~paste0(
+          "<strong>Tract: </strong>", GEOID, "<br>",
+          "<strong>County: </strong>", county, "<br>",
+          "<strong>Wealth Accumulation Index: </strong>", round(wealth_score, 1), "<br>",
+          "<strong>Percentile Rank: </strong>", round(wealth_percentile, 1), "<br>",
+          "<em>Note: The Wealth Accumulation Index is based on homeownership rates, median household income, poverty rates, unemployment rates, median home prices, appreciation rates, and small business loan access.</em>"
+        )
+      )
 }
 
 # 7. Add controls and legends to their respective maps
@@ -89,6 +109,10 @@ hsi_map <- hsi_map |>
 health_map <- health_map |>
   addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
   addLegend(pal = pal_health, values = c(0, 100), title = "Health Outcomes Index", position = "bottomright")
+
+wealth_map <- wealth_map |>
+  addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
+  addLegend(pal = pal_wealth, values = c(0, 100), title = "Wealth Accumulation Index", position = "bottomright")
 
 # 8. Construct a Bootstrap layout with custom JS to fix tab-switching rendering bugs
 dashboard_html <- tags$html(
@@ -116,11 +140,15 @@ dashboard_html <- tags$html(
       ),
       tags$li(class = "nav-item",
         tags$a(class = "nav-link", id = "health-tab", `data-toggle` = "tab", href = "#health-panel", role = "tab", "Health Outcomes Index (HOI)")
+      ),
+      tags$li(class = "nav-item",
+        tags$a(class = "nav-link", id = "wealth-tab", `data-toggle` = "tab", href = "#wealth-panel", role = "tab", "Wealth Accumulation Index (WAI)")
       )
     ),
     tags$div(class = "tab-content", id = "indexTabsContent",
       tags$div(class = "tab-pane fade show active", id = "hsi-panel", role = "tabpanel", hsi_map),
-      tags$div(class = "tab-pane fade", id = "health-panel", role = "tabpanel", health_map)
+      tags$div(class = "tab-pane fade", id = "health-panel", role = "tabpanel", health_map),
+      tags$div(class = "tab-pane fade", id = "wealth-panel", role = "tabpanel", wealth_map)
     )
   )
 )

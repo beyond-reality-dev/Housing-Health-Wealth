@@ -1,7 +1,8 @@
 # --- Housing Stability Index Calculation ---
+# The Housing Stability Index is calculated as a weighted average of three sub-domains:
 # Household Strain Sub-domain: 50% cost-burden rate (-), 50% median tenure
 # Overcrowding Sub-domain: 50% overcrowding rate (-), 50% severe overcrowding rate (-)
-# Market Distress Sub-domain:33% vacancy rate (-), 33% NOI per 1000 owners (-), 33% severe cost-burden rate (-)
+# Market Distress Sub-domain: 33% vacancy rate (-), 33% NOI per 1000 owners (-), 33% severe cost-burden rate (-)
 # Note: The HSI score is a normalized score from 0 to 100 (and a z-score for benchmarking), where higher scores indicate better housing stability. The sub-domain scores are averaged to create the overall HSI score.
 #
 # --- Health Outcomes Index Calculation ---
@@ -15,9 +16,18 @@
 # If a tract has a z-score for school withdrawal rate change > 0.5, it receives 1 point.
 # The total points are summed to create a displacement risk score (0-3), which is then categorized as follows:
 # 0 points: Stable | 1 point: Low | 2 points: Moderate | 3 points: Severe
+#
+# --- Wealth Accumulation Index Calculation ---
+# The wealth Accumulation Index is calculated as a weighted average of three sub-domains:
+# Economic Stability Sub-domain: 25% homeownership rate (+), 25% median household income (+), 
+#                                25% poverty rate (-), 25% unemployment rate (-)
+# Home Assets Sub-domain: 50% median home price (+), 50% appreciation rate (+)
+# Capital Access Sub-domain: 50% small business loan rate (+), 50% small business loan amount per household (+)
+# Note: The WAI score is a normalized score from 0 to 100 (and a z-score for benchmarking), where higher scores indicate better wealth accumulation.
 
 # Load necessary libraries
 library(tidyverse)
+library(dplyr)
 
 # 1. Define the custom Min-Max scaling function
 scale_0_100 <- function(x, direction = "positive") {
@@ -32,6 +42,12 @@ scale_0_100 <- function(x, direction = "positive") {
   } else {
     return(((x - min_x) / (max_x - min_x)) * 100)
   }
+}
+winsorize <- function(x, probs = c(0.01, 0.99)) {
+  quantiles <- quantile(x, probs = probs, na.rm = TRUE)
+  x[x < quantiles[1]] <- quantiles[1]
+  x[x > quantiles[2]] <- quantiles[2]
+  return(x)
 }
 
 # 2. Compute the Housing Stability Index
@@ -64,13 +80,12 @@ hsi_data <- merged_data |>
   mutate(
     # 1. Count how many of the 7 unique metrics are missing for this specific tract
     missing_count = sum(is.na(c(idx_cost_burden, idx_sev_cost_burden, idx_noi, 
-                                idx_tenure, idx_vacancy, idx_overcrowded, idx_sev_overcrowded, idx_lacking_kitchens, idx_lacking_plumbing, idx_bldg_age))),
+                                idx_tenure, idx_vacancy, idx_overcrowded, idx_sev_overcrowded))),
     
     # 2. Calculate the sub-domain scores by averaging the relevant indices
     score_household_strain = mean(c(
       idx_cost_burden,
-      idx_tenure,
-      idx_bldg_age
+      idx_tenure
     ), na.rm = TRUE),
     
     score_overcrowding = mean(c(
@@ -153,7 +168,72 @@ hsi_data <- hsi_data |>
     hoi_score = percent_rank(health_outcomes_index) * 100
   )
 
-# 5. Save the final HSI dataset to a CSV file
+# 5. Compute the Wealth Accumulation Index
+wealth_data <- merged_data |>
+# STEP A: Scale individual metrics
+  mutate(across(c(
+    pct_homeowners, median_hh_income, pct_poverty, pct_unemployed, mortgage_origination_rate, 
+    refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, 
+    home_loan_amount_per_household, small_business_loan_rate, small_business_loan_amount_per_household, 
+    median_loan_to_value, median_sale_price, appreciation_rate
+  ), ~ winsorize(., probs = c(0.01, 0.99)))) |>
+  group_by(year) |>
+  mutate(
+      idx_pct_homeownership = scale_0_100(pct_homeowners, "positive"),
+      idx_median_income = scale_0_100(median_hh_income, "positive"),
+      idx_percent_poverty = scale_0_100(pct_poverty, "negative"),
+      idx_percent_unemployed = scale_0_100(pct_unemployed, "negative"),
+      idx_mortgage_origination_rate = scale_0_100(mortgage_origination_rate, "positive"),
+      idx_refinance_origination_rate = scale_0_100(refinance_origination_rate, "positive"),
+      idx_mortgage_denial_rate = scale_0_100(mortgage_denial_rate, "negative"),
+      idx_refinance_denial_rate = scale_0_100(refinance_denial_rate, "negative"),
+      idx_home_loan_amt = scale_0_100(home_loan_amount_per_household, "positive"),
+      idx_small_business_loan_rate = scale_0_100(small_business_loan_rate, "positive"),
+      idx_small_business_loan_amount_per_household = scale_0_100(small_business_loan_amount_per_household, "positive"),
+      idx_median_loan_to_value = scale_0_100(median_loan_to_value, "negative"),
+      idx_median_home_price = scale_0_100(median_sale_price, "positive"),
+      idx_appreciation_rate = scale_0_100(appreciation_rate, "positive")
+    ) |>
+  ungroup() |>
+  
+  # STEP B: Switch to rowwise() for horizontal tract-level math
+  rowwise() |>
+  mutate(
+    # 1. Missingness count across the 9 core variables
+    missing_count = sum(is.na(c(idx_pct_homeownership, idx_median_income, idx_percent_poverty, idx_percent_unemployed, 
+                                idx_home_loan_amt, idx_small_business_loan_rate, idx_small_business_loan_amount_per_household, 
+                                idx_median_home_price, idx_appreciation_rate))),
+    
+    # 2. Calculate Sub-domain scores
+    score_stability = mean(c(idx_pct_homeownership, idx_median_income, idx_percent_poverty, idx_percent_unemployed), na.rm = TRUE),
+    score_assets    = mean(c(idx_median_home_price, idx_appreciation_rate), na.rm = TRUE),
+    score_capital   = mean(c(idx_small_business_loan_rate, idx_small_business_loan_amount_per_household), na.rm = TRUE),
+    
+    # 3. Calculate preliminary overall score (based on PCA loadings and weights)
+    raw_wealth_score = 0.5 * score_stability + 0.25 * score_assets + 0.25 * score_capital,
+
+    # 4. Enforce missingness threshold (e.g., NA if missing 3 or more)
+    wealth_score = case_when(
+      missing_count >= 3 ~ NA_real_,
+      is.nan(raw_wealth_score) ~ NA_real_,
+      TRUE ~ raw_wealth_score
+    )
+  ) |>
+  ungroup() |>
+
+  # STEP C: Calculate the final relative Z-Score and Percentile by year
+  group_by(year) |>
+  mutate(
+    wealth_zscore     = (wealth_score - mean(wealth_score, na.rm = TRUE)) / sd(wealth_score, na.rm = TRUE),
+    wealth_percentile = percent_rank(wealth_score) * 100
+  ) |>
+  ungroup() |>
+  
+  select(-raw_wealth_score, -missing_count)
+hsi_data <- hsi_data |>
+  left_join(wealth_data |> select(GEOID, year, wealth_score, wealth_zscore, wealth_percentile), by = c("GEOID", "year"))
+
+# 6. Save the final HSI dataset to a CSV file
 output_file <- "../data/clean/hsi_data.csv"
 dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
 if (file.exists(output_file)) {

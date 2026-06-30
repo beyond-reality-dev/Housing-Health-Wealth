@@ -386,7 +386,7 @@ calc_health <- function(df) {
 calc_wealth <- function(df) {
   df |>
     mutate(
-      median_hh_income   = median_hh_incomeE,
+      median_hh_income = median_hh_incomeE,
       pct_poverty = (poverty_totalE / total_popE) * 100,
       pct_unemployed = (unemployedE / labor_force_totalE) * 100
     ) |>
