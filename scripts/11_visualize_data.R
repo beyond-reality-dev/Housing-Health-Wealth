@@ -6,6 +6,9 @@ library(sf)
 library(tigris)
 library(leaflet)
 library(htmltools)
+library(mapview)
+library(webshot2)
+library(magick)
 
 # 1. Read the HSI data with GEOIDs and years
 hsi_data <- read_csv("../data/clean/hsi_data.csv") |>
@@ -30,12 +33,13 @@ mapped_data <- md_tracts |>
   )
 
 # 4. Define unique color palettes for each index
-pal_hsi <- colorNumeric(palette = "inferno", domain = c(0, 100), na.color = "grey")
+pal_hsi    <- colorNumeric(palette = "inferno", domain = c(0, 100), na.color = "grey")
 pal_health <- colorNumeric(palette = "viridis", domain = c(0, 100), na.color = "grey")
 pal_wealth <- colorNumeric(palette = "plasma", domain = c(0, 100), na.color = "grey")
+pal_other  <- colorNumeric(palette = "cividis", domain = c(0, 100), na.color = "grey", reverse = TRUE)
 
 # 5. Initialize separate base maps
-hsi_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
+hsi_map    <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
 health_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
 wealth_map <- leaflet() |> addProviderTiles(providers$CartoDB.Positron)
 
@@ -153,7 +157,58 @@ dashboard_html <- tags$html(
   )
 )
 
-# 9. Save output
+# 9. Render images of Maryland and Baltimore City from each index for 2024
+maryland_2024 <- mapped_data |> 
+  filter(year == 2024)
+baltimore_2024 <- mapped_data |> 
+  filter(county == "Baltimore City", year == 2024)
+
+# Create a helper function to build the static-friendly leaflet maps
+build_static_map <- function(data, value_col, pal, title, target) {
+  leaflet(data, options = leafletOptions(zoomSnap = 0.01)) |> 
+    addProviderTiles(providers$CartoDB.Positron) |> 
+    addPolygons(
+      fillColor = ~pal(value_col),
+      weight = 0.5,
+      color = "white",
+      fillOpacity = 0.85
+    ) |> 
+    addLegend(pal = pal, values = c(0, 100), title = title, position = "bottomright") |>
+    setView(
+      lng = ifelse(target == "maryland", -76.6413, -76.6122),
+      lat = ifelse(target == "maryland", 39.0458, 39.2904),
+      zoom = ifelse(target == "maryland", 7.75, 12)
+    )
+}
+
+# Generate the three maps for Maryland
+hsi_map_md    <- build_static_map(maryland_2024, maryland_2024$hsi_score, pal_hsi, "Housing Stability Index", "maryland")
+health_map_md <- build_static_map(maryland_2024, maryland_2024$health_outcomes_index, pal_health, "Health Outcomes Index", "maryland")
+wealth_map_md <- build_static_map(maryland_2024, maryland_2024$wealth_score, pal_wealth, "Wealth Accumulation Index", "maryland")
+
+# Generate the four maps for Baltimore City
+hsi_img_map    <- build_static_map(baltimore_2024, baltimore_2024$hsi_score, pal_hsi, "Housing Stability Index", "baltimore")
+health_img_map <- build_static_map(baltimore_2024, baltimore_2024$health_outcomes_index, pal_health, "Health Outcomes Index", "baltimore")
+wealth_img_map <- build_static_map(baltimore_2024, baltimore_2024$wealth_score, pal_wealth, "Wealth Accumulation Index", "baltimore")
+black_img_map  <- build_static_map(baltimore_2024, baltimore_2024$pct_black, pal_other, "Black Population Percentage", "baltimore")
+
+# Save the outputs as static PNG files
+dir.create("../output/images", recursive = TRUE, showWarnings = FALSE)
+dir.create("../output/images/maryland", recursive = TRUE, showWarnings = FALSE)
+dir.create("../output/images/baltimore_city", recursive = TRUE, showWarnings = FALSE)
+mapshot2(hsi_img_map, file = "../output/images/baltimore_city/baltimore_hsi_2024.png", selfcontained = FALSE)
+mapshot2(health_img_map, file = "../output/images/baltimore_city/baltimore_health_2024.png", selfcontained = FALSE)
+mapshot2(wealth_img_map, file = "../output/images/baltimore_city/baltimore_wealth_2024.png", selfcontained = FALSE)
+mapshot2(black_img_map, file = "../output/images/baltimore_city/baltimore_black_pct_2024.png", selfcontained = FALSE)
+mapshot2(hsi_map_md, file = "../output/images/maryland/maryland_hsi_2024.png", selfcontained = FALSE)
+mapshot2(health_map_md, file = "../output/images/maryland/maryland_health_2024.png", selfcontained = FALSE)
+mapshot2(wealth_map_md, file = "../output/images/maryland/maryland_wealth_2024.png", selfcontained = FALSE)
+top_row <- image_append(c(image_read("../output/images/baltimore_city/baltimore_hsi_2024.png"), image_read("../output/images/baltimore_city/baltimore_health_2024.png")))
+bottom_row <- image_append(c(image_read("../output/images/baltimore_city/baltimore_wealth_2024.png"), image_read("../output/images/baltimore_city/baltimore_black_pct_2024.png")))
+combined_image <- image_append(c(top_row, bottom_row), stack = TRUE)
+image_write(combined_image, path = "../output/images/baltimore_city/baltimore_combined_2024.png", format = "png")
+
+# 10. Save output
 output_html <- "../output/housing_dashboard.html"
 dir.create(dirname(output_html), recursive = TRUE, showWarnings = FALSE)
 if (file.exists(output_html)) {

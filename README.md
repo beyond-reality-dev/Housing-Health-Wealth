@@ -132,9 +132,9 @@ To run the scripts in this repository, you will need the following software, pac
    - `scripts/06_health_pull.R`: Pulls and processes health outcome data, including low birth weight, asthma, and myocardial infarction rates.
    - `scripts/07_lending_pull.R`: Pulls and processes lending data, including mortgage origination rates and small business loan activity, and crosswalks pre-2022 data to current census tract boundaries.
    - `scripts/08_property_pull.R`: Pulls and processes property sales data from the Maryland Department of Assessments and Taxation (SDAT), including geocoding to current census tract boundaries.
-   - `scripts/08_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
-   - `scripts/09_calculate_index.R`: Calculates the Housing Stability Index (HSI).
-   - `scripts/10_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
+   - `scripts/09_merge_data.R`: Merges all processed datasets into a single analytical dataset for further analysis and index construction, and marks designated Just Communities.
+   - `scripts/10_calculate_index.R`: Calculates the Housing Stability Index (HSI).
+   - `scripts/11_visualize_data.R`: Creates visualizations of the HSI over time and across census tracts.
 5. These may be run together (excluding `scripts/08_property_pull.R`) from the `scripts/run_all.R` script, which will execute all the above scripts in order. Note that this may take some time (approximately 10 minutes) to run, and may need to be repeated if you lose internet connection.
 6. Note that `scripts/08_property_pull.R` is not included in the `run_all.R` script because it takes substantially longer to run (approximately 20 minutes) due to processing nearly 2.5 million property records. It is recommended to run this script first to cache the property data, and then run the other scripts in order. If you have already run `scripts/08_property_pull.R` and cached the property data, you can skip this step and run the other scripts in order.
 
@@ -152,9 +152,9 @@ The following warnings are expected and can be safely ignored:
 | `01_acs_pull.R` | `incomplete final line found on '../census.key'` | Missing newline at end of key file |
 | `02_noi_pull.R` | `There were 50 or more warnings` | NOI data unavailable prior to 2022 |
 | `05_mobility_pull.R` | `attribute variables are assumed to be spatially constant` / `There were 2 warnings in 'mutate()'` | State and county-wide data is ignored during tract crosswalk |
-| `09_calculate_index.R` | `There were 34 warnings in 'mutate()'` | Missing values in NOI data |
-| `10_visualize_data.R` | `sf layer has inconsistent datum` | Slight CRS mismatch between Maryland boundary and tract shapefiles; does not affect outputs |
 | `07_lending_pull.R` | `One or more parsing issues` / `There were 14 warnings in 'mutate()'` / `Detected an unexpected many-to-many relationship` / `There were 6412 warnings in 'mutate()'`| Related to issues with the CRA data file formatting |
+| `10_calculate_index.R` | `There were 34 warnings in 'mutate()'` | Missing values in NOI data |
+| `11_visualize_data.R` | `sf layer has inconsistent datum` | Slight CRS mismatch between Maryland boundary and tract shapefiles; does not affect outputs |
  
 If you encounter errors beyond these, check that all required data files are present and correctly named, and that your Census and Socrata API keys are valid.
 
@@ -233,11 +233,11 @@ HMDA records are pulled year-by-year from the CFPB's data browser API, filtered 
 #### Housing Stability Index (HSI) <!-- omit in toc -->
 The HSI is a composite index scored 0–100 (higher = more stable) built from three sub-domains, which were selected based on a Principal Component Analysis (PCA) of the input metrics:
 
-* Household Strain — averages cost burden rate and median tenure
+* Household Strain — averages cost burden rate, severe cost burden rate, and median tenure
 * Overcrowding — averages overcrowding and severe overcrowding rates
-* Market Distress — averages vacancy rate, NOI per 1,000 owners, and severe cost burden rate
+* Market Distress — averages vacancy rate and NOI per 1,000 owners
 
-Each input metric is min-max scaled to 0–100 within year, with directionally negative indicators (e.g. cost burden) inverted so that higher always means better. The sub-domain scores are then averaged into a final raw score. Tracts missing 3 or more input variables are excluded (score set to NA). The final HSI score is then used to compute a within-year z-score and percentile rank for cross-tract benchmarking.
+First, every metric is winsorized at the 1st and 99th percentiles to reduce the influence of extreme outliers. Each input metric is then min-max scaled to 0–100 within year, with directionally negative indicators (e.g. cost burden) inverted so that higher always means better. The sub-domain scores are then averaged into a final raw score. Tracts missing 3 or more input variables are excluded (score set to NA). The final HSI score is then used to compute a within-year z-score and percentile rank for cross-tract benchmarking.
 
 #### Wealth Accumulation Index (WAI) <!-- omit in toc -->
 The WAI is a composite index scored 0–100 (higher = more wealth) built from three sub-domains, which were selected based on a Principal Component Analysis (PCA) of the input metrics:
@@ -245,6 +245,8 @@ The WAI is a composite index scored 0–100 (higher = more wealth) built from th
 * Economic Stability — averages the homeownership rate, median income, the poverty rate, the unemployment rate, and the poverty rate
 * Housing Assets — averages the median home value and appreciation rate
 * Capital Access — averages the small business loan rate and loan amount per household
+
+First, every metric is winsorized at the 1st and 99th percentiles to reduce the influence of extreme outliers. Each input metric is then min-max scaled to 0–100 within year, with directionally negative indicators (e.g. cost burden) inverted so that higher always means better. The sub-domain scores are then averaged into a final raw score. Tracts missing 3 or more input variables are excluded (score set to NA). The final WAI score is then used to compute a within-year z-score and percentile rank for cross-tract benchmarking.
 
 #### Health Outcomes Index (HOI) <!-- omit in toc -->
 The HOI is a composite index that averages the percentile ranks of five indicators:

@@ -12,8 +12,8 @@
 #
 # --- Displacement Risk Assessment Calculation ---
 # If a tract has a z-score for minority population change < -0.5, it receives 1 point.
-# If a tract has a z-score for educational attainment change > 1, it receives 1 point.
-# If a tract has a z-score for school withdrawal rate change > 0.5, it receives 1 point.
+# If a tract has a z-score for educational attainment change > 0.5, it receives 1 point.
+# If a tract has a z-score for school withdrawal rate change > 1, it receives 1 point.
 # The total points are summed to create a displacement risk score (0-3), which is then categorized as follows:
 # 0 points: Stable | 1 point: Low | 2 points: Moderate | 3 points: Severe
 #
@@ -43,10 +43,11 @@ scale_0_100 <- function(x, direction = "positive") {
     return(((x - min_x) / (max_x - min_x)) * 100)
   }
 }
-winsorize <- function(x, probs = c(0.01, 0.99)) {
-  quantiles <- quantile(x, probs = probs, na.rm = TRUE)
-  x[x < quantiles[1]] <- quantiles[1]
-  x[x > quantiles[2]] <- quantiles[2]
+winsorize <- function(x, lower_quantile = 0.01, upper_quantile = 0.99) {
+  lower_bound <- quantile(x, lower_quantile, na.rm = TRUE)
+  upper_bound <- quantile(x, upper_quantile, na.rm = TRUE)
+  x[x < lower_bound] <- lower_bound
+  x[x > upper_bound] <- upper_bound
   return(x)
 }
 
@@ -55,6 +56,8 @@ merged_data <- read_csv("../data/clean/merged_panel_data.csv")
 hsi_data <- merged_data |>
   # STEP A: Scale individual metrics
   group_by(year) |>
+  mutate(across(c(pct_moderate_cost_burden, pct_severe_cost_burden, noi_per_1000_owners, pct_subsidized_units, med_tenure, vacancy_rate, pct_overcrowded, pct_severely_overcrowded, pct_lacking_kitchen, pct_lacking_plumbing, med_building_age), 
+         ~winsorize(.x))) |>
   mutate(
     idx_cost_burden           = scale_0_100(pct_moderate_cost_burden, "negative"),
     idx_sev_cost_burden       = scale_0_100(pct_severe_cost_burden, "negative"),
@@ -85,6 +88,7 @@ hsi_data <- merged_data |>
     # 2. Calculate the sub-domain scores by averaging the relevant indices
     score_household_strain = mean(c(
       idx_cost_burden,
+      idx_sev_cost_burden,
       idx_tenure
     ), na.rm = TRUE),
     
@@ -95,8 +99,7 @@ hsi_data <- merged_data |>
 
     score_market_distress = mean(c(
       idx_vacancy,
-      idx_noi,
-      idx_sev_cost_burden
+      idx_noi
     ), na.rm = TRUE),
     
     # 3. Calculate the preliminary overall score
@@ -125,6 +128,17 @@ hsi_data <- merged_data |>
   
   # Clean up: Drop the temporary calculation columns
   select(-raw_hsi_score, -missing_count)
+
+# STEP D: Compute the PCA loadings for the 2022 base year to validate the HSI sub-domains
+pca_vars <- c("idx_cost_burden", "idx_sev_cost_burden", "idx_noi", 
+              "idx_tenure", "idx_vacancy", "idx_overcrowded", "idx_sev_overcrowded")
+data_2022 <- hsi_data |>
+  filter(year == 2022) |>
+  drop_na(all_of(pca_vars))
+pca_model_2022 <- prcomp(data_2022[, pca_vars], center = TRUE, scale. = TRUE)
+print(summary(pca_model_2022))
+loadings <- pca_model_2022$rotation
+print(loadings)
 
 # 3. Compute the Displacement Risk Assessment
 hsi_data <- hsi_data |>
@@ -171,13 +185,9 @@ hsi_data <- hsi_data |>
 # 5. Compute the Wealth Accumulation Index
 wealth_data <- merged_data |>
 # STEP A: Scale individual metrics
-  mutate(across(c(
-    pct_homeowners, median_hh_income, pct_poverty, pct_unemployed, mortgage_origination_rate, 
-    refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, 
-    home_loan_amount_per_household, small_business_loan_rate, small_business_loan_amount_per_household, 
-    median_loan_to_value, median_sale_price, appreciation_rate
-  ), ~ winsorize(., probs = c(0.01, 0.99)))) |>
   group_by(year) |>
+  mutate(across(c(pct_homeowners, median_hh_income, pct_poverty, pct_unemployed, mortgage_origination_rate, refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, home_loan_amount_per_household, small_business_loan_rate, small_business_loan_amount_per_household, median_loan_to_value, median_sale_price, appreciation_rate), 
+         ~winsorize(.x))) |>
   mutate(
       idx_pct_homeownership = scale_0_100(pct_homeowners, "positive"),
       idx_median_income = scale_0_100(median_hh_income, "positive"),
@@ -201,7 +211,7 @@ wealth_data <- merged_data |>
   mutate(
     # 1. Missingness count across the 9 core variables
     missing_count = sum(is.na(c(idx_pct_homeownership, idx_median_income, idx_percent_poverty, idx_percent_unemployed, 
-                                idx_home_loan_amt, idx_small_business_loan_rate, idx_small_business_loan_amount_per_household, 
+                                idx_small_business_loan_rate, idx_small_business_loan_amount_per_household, 
                                 idx_median_home_price, idx_appreciation_rate))),
     
     # 2. Calculate Sub-domain scores
@@ -212,9 +222,9 @@ wealth_data <- merged_data |>
     # 3. Calculate preliminary overall score (based on PCA loadings and weights)
     raw_wealth_score = 0.5 * score_stability + 0.25 * score_assets + 0.25 * score_capital,
 
-    # 4. Enforce missingness threshold (e.g., NA if missing 3 or more)
+    # 4. Enforce missingness threshold (e.g., NA if missing 4 or more)
     wealth_score = case_when(
-      missing_count >= 3 ~ NA_real_,
+      missing_count >= 4 ~ NA_real_,
       is.nan(raw_wealth_score) ~ NA_real_,
       TRUE ~ raw_wealth_score
     )
@@ -230,6 +240,20 @@ wealth_data <- merged_data |>
   ungroup() |>
   
   select(-raw_wealth_score, -missing_count)
+
+# STEP D: Compute the PCA loadings for the 2022 base year to validate the WAI sub-domains
+pca_vars <- c("idx_pct_homeownership", "idx_median_income", "idx_percent_poverty", "idx_percent_unemployed", 
+              "idx_small_business_loan_rate", "idx_small_business_loan_amount_per_household", 
+              "idx_median_home_price", "idx_appreciation_rate")
+data_2022 <- wealth_data |>
+  filter(year == 2022) |>
+  drop_na(all_of(pca_vars))
+pca_model_2022 <- prcomp(data_2022[, pca_vars], center = TRUE, scale. = TRUE)
+print(summary(pca_model_2022))
+loadings <- pca_model_2022$rotation
+print(loadings)
+
+
 hsi_data <- hsi_data |>
   left_join(wealth_data |> select(GEOID, year, wealth_score, wealth_zscore, wealth_percentile), by = c("GEOID", "year"))
 

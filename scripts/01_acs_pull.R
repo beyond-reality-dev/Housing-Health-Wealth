@@ -88,11 +88,15 @@ vars_base <- c(
   grp_hsg_total      = "B26001_001",
 
   # Demographics
-  white              = "B02001_002", total_educated     = "B15002_001",
-  m_bachelor_degree  = "B15002_015", m_masters_degree   = "B15002_016",
-  m_professional     = "B15002_017", m_doctorate        = "B15002_018",
-  f_bachelor_degree  = "B15002_032", f_masters_degree   = "B15002_033",
-  f_professional     = "B15002_034", f_doctorate        = "B15002_035"
+  white              = "B02001_002", black              = "B02001_003",
+  american_indian    = "B02001_004", asian              = "B02001_005",
+  native_hawaiian    = "B02001_006", other_race         = "B02001_007",
+  mixed_race         = "B02001_008", hispanic           = "B03003_003",
+  total_educated     = "B15002_001", m_bachelor_degree  = "B15002_015", 
+  m_masters_degree   = "B15002_016", m_professional     = "B15002_017", 
+  m_doctorate        = "B15002_018", f_bachelor_degree  = "B15002_032",
+  f_masters_degree   = "B15002_033", f_professional     = "B15002_034", 
+  f_doctorate        = "B15002_035"
 )
 
 vars_health <- c(
@@ -398,6 +402,14 @@ calc_demographics <- function(df) {
     group_by(GEOID) |>
     arrange(year, .by_group = TRUE) |>
     mutate(
+      pct_white = whiteE / total_popE * 100,
+      pct_black = blackE / total_popE * 100,
+      pct_american_indian = american_indianE / total_popE * 100,
+      pct_asian = asianE / total_popE * 100,
+      pct_native_hawaiian = native_hawaiianE / total_popE * 100,
+      pct_other_race = other_raceE / total_popE * 100,
+      pct_mixed_race = mixed_raceE / total_popE * 100,
+      pct_hispanic = hispanicE / total_popE * 100,
       minority_proportion = (total_popE - whiteE) / total_popE,
       bachelor_proportion = (m_bachelor_degreeE + m_masters_degreeE + m_professionalE + m_doctorateE +
         f_bachelor_degreeE + f_masters_degreeE + f_professionalE + f_doctorateE) / total_educatedE,
@@ -412,7 +424,7 @@ calc_demographics <- function(df) {
         (bachelor_proportion - lag(bachelor_proportion, n = 5)) * 100
       )
     ) |>
-    select(GEOID, year, pct_pt_change_minority, pct_pt_change_education)
+    select(GEOID, year, pct_white, pct_black, pct_asian, pct_hispanic, pct_american_indian, pct_native_hawaiian, pct_mixed_race, pct_other_race, pct_pt_change_minority, pct_pt_change_education)
 }
 
 # 7. Compile and export the final ACS dataset with all derived variables
