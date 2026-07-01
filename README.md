@@ -58,6 +58,8 @@ Note: All data sources are at the 2020 census tract level, which is the smallest
 | Subsidized Housing (NHPD) | 2010–2025 | Property (geocoded to tract) | Public ([NHPD](https://preservationdatabase.org)) |
 | School Enrollment/Mobility (MSDE) | 2009–2025 | School attendance zone (crosswalked to tract) | Public ([MSDE](https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datadownload)) |
 | Health Outcomes (MDE EnviroScreen) | 2024 only | Census tract | Public ([Maryland iMap](https://mdgeodata.md.gov/imap/rest/services/Environment/MD_EnviroScreen/MapServer)) |
+| Home Mortgage Disclosure Act (HMDA) | 2018–2024 | Census tract | Public ([FFIEC](https://www.ffiec.gov/hmda/hmdaproducts.htm)) |
+| Community Reinvestment Act (CRA) | 2018–2024 | Census tract | Public ([FFIEC](https://www.ffiec.gov/cra/flat-files.htm)) |
 
 ### ACS Data
 *Years of availability:* 2010-2024 (health and wealth data only available for 2015-2024)
@@ -271,7 +273,7 @@ Scores map to risk categories: 0 → Stable, 1 → Low, 2 → Moderate, 3 → Se
 
 ## Contact
 
-This project is maintained by the Division of Just Communities at the Maryland Department of Housing and Community Development. For questions about the methodology, data access, or to report issues, contact Scott Pawley at his [LinkedIn profile](https://www.linkedin.com/in/scott-pawley/), the team at the Just Communities' [website](https://dhcd.maryland.gov/Just-Communities/Pages/default.aspx), or open an issue in this repository.
+This project is maintained by the Division of Just Communities at the Maryland Department of Housing and Community Development. For questions about the methodology, data access, or to report issues, contact Scott Pawley at his [LinkedIn profile](https://www.linkedin.com/in/scott-pawley/), the team at the Just Communities [website](https://dhcd.maryland.gov/Just-Communities/Pages/default.aspx), or open an issue in this repository.
 
 ## Bibliography
 
