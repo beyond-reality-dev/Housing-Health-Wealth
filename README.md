@@ -288,6 +288,8 @@ Maryland Department of Labor. (2026). *Maryland Notices of Intent to Foreclose b
 
 Maryland State Department of Education. (2026). *Student Mobility Data* [Data set]. https://reportcard.msde.maryland.gov/Graphs/#/DataDownloads/datadownload
 
+Maryland State Department of Assessments and Taxation. (2026). *Real Property Data* [Data set]. https://sdat.dat.maryland.gov/RealProperty/Pages/default.aspx
+
 Public and Affordable Housing Research Corporation & National Low Income Housing Coalition. (2026). *National Housing Preservation Database* [Data set]. https://preservationdatabase.org
 
 Schroeder, J., Van Riper, D., Manson, S., Knowles, K., Kugler, T., Roberts, F., & Ruggles, S. (2025). *IPUMS National Historical Geographic Information System: Version 20.0* [Data set]. http://doi.org/10.18128/D050.V20.0 
