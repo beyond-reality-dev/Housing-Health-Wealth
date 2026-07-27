@@ -52,7 +52,7 @@ for (current_year in target_years) {
   hsi_map <- hsi_map |>
     addPolygons(
       data = year_data,
-      fillColor = ~pal_hsi(hsi_score),
+      fillColor = ~pal_hsi(idx_hsi_score),
       weight = 0.3,
       color = "white",
       fillOpacity = 0.85,
@@ -60,8 +60,8 @@ for (current_year in target_years) {
       popup = ~paste0(
         "<strong>Tract: </strong>", GEOID, "<br>",
         "<strong>County: </strong>", county, "<br>",
-        "<strong>HSI Score: </strong>", round(hsi_score, 1), "<br>",
-        "<strong>HSI Z-Score: </strong>", round(hsi_zscore, 2), "<br>",
+        "<strong>HSI Score: </strong>", round(idx_hsi_score, 1), "<br>",
+        "<strong>HSI Z-Score: </strong>", round(hsi_score, 2), "<br>",
         "<strong>HSI Percentile: </strong>", round(hsi_percentile, 1), "<br>",
         "<strong>Displacement Risk: </strong>", displacement_category, "<br>",
         "<em>Note: Displacement risk is based on changes in minority population, educational attainment, and school withdrawal rates and should be evaluated contextually.</em>"
@@ -90,7 +90,7 @@ for (current_year in target_years) {
     wealth_map <- wealth_map |>
       addPolygons(
         data = year_data,
-        fillColor = ~pal_wealth(wealth_score),
+        fillColor = ~pal_wealth(idx_wealth_score),
         weight = 0.3,
         color = "white",
         fillOpacity = 0.85,
@@ -98,7 +98,7 @@ for (current_year in target_years) {
         popup = ~paste0(
           "<strong>Tract: </strong>", GEOID, "<br>",
           "<strong>County: </strong>", county, "<br>",
-          "<strong>Wealth Accumulation Index: </strong>", round(wealth_score, 1), "<br>",
+          "<strong>Wealth Accumulation Index: </strong>", round(idx_wealth_score, 1), "<br>",
           "<strong>Percentile Rank: </strong>", round(wealth_percentile, 1), "<br>",
           "<em>Note: The Wealth Accumulation Index is based on homeownership rates, median household income, poverty rates, unemployment rates, median home prices, appreciation rates, and small business loan access.</em>"
         )
@@ -182,14 +182,14 @@ build_static_map <- function(data, value_col, pal, title, target) {
 }
 
 # Generate the three maps for Maryland
-hsi_map_md    <- build_static_map(maryland_2024, maryland_2024$hsi_score, pal_hsi, "Housing Stability Index", "maryland")
+hsi_map_md    <- build_static_map(maryland_2024, maryland_2024$idx_hsi_score, pal_hsi, "Housing Stability Index", "maryland")
 health_map_md <- build_static_map(maryland_2024, maryland_2024$health_outcomes_index, pal_health, "Health Outcomes Index", "maryland")
-wealth_map_md <- build_static_map(maryland_2024, maryland_2024$wealth_score, pal_wealth, "Wealth Accumulation Index", "maryland")
+wealth_map_md <- build_static_map(maryland_2024, maryland_2024$idx_wealth_score, pal_wealth, "Wealth Accumulation Index", "maryland")
 
 # Generate the four maps for Baltimore City
-hsi_img_map    <- build_static_map(baltimore_2024, baltimore_2024$hsi_score, pal_hsi, "Housing Stability Index", "baltimore")
+hsi_img_map    <- build_static_map(baltimore_2024, baltimore_2024$idx_hsi_score, pal_hsi, "Housing Stability Index", "baltimore")
 health_img_map <- build_static_map(baltimore_2024, baltimore_2024$health_outcomes_index, pal_health, "Health Outcomes Index", "baltimore")
-wealth_img_map <- build_static_map(baltimore_2024, baltimore_2024$wealth_score, pal_wealth, "Wealth Accumulation Index", "baltimore")
+wealth_img_map <- build_static_map(baltimore_2024, baltimore_2024$idx_wealth_score, pal_wealth, "Wealth Accumulation Index", "baltimore")
 black_img_map  <- build_static_map(baltimore_2024, baltimore_2024$pct_black, pal_other, "Black Population Percentage", "baltimore")
 
 # Save the outputs as static PNG files

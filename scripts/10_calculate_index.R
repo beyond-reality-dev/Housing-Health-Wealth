@@ -29,7 +29,23 @@
 library(tidyverse)
 library(dplyr)
 
-# 1. Define the custom Min-Max scaling function
+# 1. Define the custom scaling functions
+z_score <- function(x, direction = "positive") {
+  mean_x <- mean(x, na.rm = TRUE)
+  sd_x <- sd(x, na.rm = TRUE)
+  
+  # Prevent division by zero while preserving NA values
+  if (!is.na(sd_x) && sd_x == 0) {
+    x[!is.na(x)] <- 0
+    return(x)
+  }
+  
+  if (direction == "negative") {
+    return((mean_x - x) / sd_x)
+  } else {
+    return((x - mean_x) / sd_x)
+  }
+}
 scale_0_100 <- function(x, direction = "positive") {
   min_x <- min(x, na.rm = TRUE)
   max_x <- max(x, na.rm = TRUE)
@@ -59,17 +75,17 @@ hsi_data <- merged_data |>
   mutate(across(c(pct_moderate_cost_burden, pct_severe_cost_burden, noi_per_1000_owners, pct_subsidized_units, med_tenure, vacancy_rate, pct_overcrowded, pct_severely_overcrowded, pct_lacking_kitchen, pct_lacking_plumbing, med_building_age), 
          ~winsorize(.x))) |>
   mutate(
-    idx_cost_burden           = scale_0_100(pct_moderate_cost_burden, "negative"),
-    idx_sev_cost_burden       = scale_0_100(pct_severe_cost_burden, "negative"),
-    idx_noi                   = scale_0_100(noi_per_1000_owners, "negative"),
-    idx_subsidized            = scale_0_100(pct_subsidized_units, "positive"),
-    idx_tenure                = scale_0_100(med_tenure, "positive"),
-    idx_vacancy               = scale_0_100(vacancy_rate, "negative"),
-    idx_overcrowded           = scale_0_100(pct_overcrowded, "negative"),
-    idx_sev_overcrowded       = scale_0_100(pct_severely_overcrowded, "negative"),
-    idx_lacking_kitchens      = scale_0_100(pct_lacking_kitchen, "negative"),
-    idx_lacking_plumbing      = scale_0_100(pct_lacking_plumbing, "negative"),
-    idx_bldg_age              = scale_0_100(med_building_age, "negative"),
+    z_cost_burden             = z_score(pct_moderate_cost_burden, "negative"),
+    z_sev_cost_burden         = z_score(pct_severe_cost_burden, "negative"),
+    z_noi                     = z_score(noi_per_1000_owners, "negative"),
+    z_subsidized              = z_score(pct_subsidized_units, "positive"),
+    z_tenure                  = z_score(med_tenure, "positive"),
+    z_vacancy                 = z_score(vacancy_rate, "negative"),
+    z_overcrowded             = z_score(pct_overcrowded, "negative"),
+    z_sev_overcrowded         = z_score(pct_severely_overcrowded, "negative"),
+    z_lacking_kitchens        = z_score(pct_lacking_kitchen, "negative"),
+    z_lacking_plumbing        = z_score(pct_lacking_plumbing, "negative"),
+    z_bldg_age                = z_score(med_building_age, "negative"),
     idx_uninsurance           = percent_rank(pct_uninsured) * 100,
     idx_pre_1980_housing      = percent_rank(pct_built_pre1980) * 100,
     idx_low_birth_weight      = percentile_low_birth_weight,
@@ -82,24 +98,24 @@ hsi_data <- merged_data |>
   rowwise() |>
   mutate(
     # 1. Count how many of the 7 unique metrics are missing for this specific tract
-    missing_count = sum(is.na(c(idx_cost_burden, idx_sev_cost_burden, idx_noi, 
-                                idx_tenure, idx_vacancy, idx_overcrowded, idx_sev_overcrowded))),
+    missing_count = sum(is.na(c(z_cost_burden, z_sev_cost_burden, z_noi, 
+                                z_tenure, z_vacancy, z_overcrowded, z_sev_overcrowded))),
     
     # 2. Calculate the sub-domain scores by averaging the relevant indices
     score_household_strain = mean(c(
-      idx_cost_burden,
-      idx_sev_cost_burden,
-      idx_tenure
+      z_cost_burden,
+      z_sev_cost_burden,
+      z_tenure
     ), na.rm = TRUE),
     
     score_overcrowding = mean(c(
-      idx_overcrowded, 
-      idx_sev_overcrowded
+      z_overcrowded,
+      z_sev_overcrowded
     ), na.rm = TRUE),
 
     score_market_distress = mean(c(
-      idx_vacancy,
-      idx_noi
+      z_vacancy,
+      z_noi
     ), na.rm = TRUE),
     
     # 3. Calculate the preliminary overall score
@@ -121,8 +137,8 @@ hsi_data <- merged_data |>
   # STEP C: Calculate the Z-Score relative to the year, strictly on the surviving tracts
   group_by(year) |>
   mutate(
-    hsi_zscore = (hsi_score - mean(hsi_score, na.rm = TRUE)) / sd(hsi_score, na.rm = TRUE),
-    hsi_percentile = percent_rank(hsi_score) * 100
+    hsi_percentile = percent_rank(hsi_score) * 100,
+    idx_hsi_score  = scale_0_100(hsi_score, "positive")
   ) |>
   ungroup() |>
   
@@ -130,8 +146,8 @@ hsi_data <- merged_data |>
   select(-raw_hsi_score, -missing_count)
 
 # STEP D: Compute the PCA loadings for the 2022 base year to validate the HSI sub-domains
-pca_vars <- c("idx_cost_burden", "idx_sev_cost_burden", "idx_noi", 
-              "idx_tenure", "idx_vacancy", "idx_overcrowded", "idx_sev_overcrowded")
+pca_vars <- c("z_cost_burden", "z_sev_cost_burden", "z_noi", 
+              "z_tenure", "z_vacancy", "z_overcrowded", "z_sev_overcrowded")
 data_2022 <- hsi_data |>
   filter(year == 2022) |>
   drop_na(all_of(pca_vars))
@@ -189,20 +205,20 @@ wealth_data <- merged_data |>
   mutate(across(c(pct_homeowners, median_hh_income, pct_poverty, pct_unemployed, mortgage_origination_rate, refinance_origination_rate, mortgage_denial_rate, refinance_denial_rate, home_loan_amount_per_household, small_business_loan_rate, small_business_loan_amount_per_household, median_loan_to_value, median_sale_price, appreciation_rate), 
          ~winsorize(.x))) |>
   mutate(
-      idx_pct_homeownership = scale_0_100(pct_homeowners, "positive"),
-      idx_median_income = scale_0_100(median_hh_income, "positive"),
-      idx_percent_poverty = scale_0_100(pct_poverty, "negative"),
-      idx_percent_unemployed = scale_0_100(pct_unemployed, "negative"),
-      idx_mortgage_origination_rate = scale_0_100(mortgage_origination_rate, "positive"),
-      idx_refinance_origination_rate = scale_0_100(refinance_origination_rate, "positive"),
-      idx_mortgage_denial_rate = scale_0_100(mortgage_denial_rate, "negative"),
-      idx_refinance_denial_rate = scale_0_100(refinance_denial_rate, "negative"),
-      idx_home_loan_amt = scale_0_100(home_loan_amount_per_household, "positive"),
-      idx_small_business_loan_rate = scale_0_100(small_business_loan_rate, "positive"),
-      idx_small_business_loan_amount_per_household = scale_0_100(small_business_loan_amount_per_household, "positive"),
-      idx_median_loan_to_value = scale_0_100(median_loan_to_value, "negative"),
-      idx_median_home_price = scale_0_100(median_sale_price, "positive"),
-      idx_appreciation_rate = scale_0_100(appreciation_rate, "positive")
+      z_pct_homeownership = z_score(pct_homeowners, "positive"),
+      z_median_income = z_score(median_hh_income, "positive"),
+      z_percent_poverty = z_score(pct_poverty, "negative"),
+      z_percent_unemployed = z_score(pct_unemployed, "negative"),
+      z_mortgage_origination_rate = z_score(mortgage_origination_rate, "positive"),
+      z_refinance_origination_rate = z_score(refinance_origination_rate, "positive"),
+      z_mortgage_denial_rate = z_score(mortgage_denial_rate, "negative"),
+      z_refinance_denial_rate = z_score(refinance_denial_rate, "negative"),
+      z_home_loan_amt = z_score(home_loan_amount_per_household, "positive"),
+      z_small_business_loan_rate = z_score(small_business_loan_rate, "positive"),
+      z_small_business_loan_amount_per_household = z_score(small_business_loan_amount_per_household, "positive"),
+      z_median_loan_to_value = z_score(median_loan_to_value, "negative"),
+      z_median_home_price = z_score(median_sale_price, "positive"),
+      z_appreciation_rate = z_score(appreciation_rate, "positive")
     ) |>
   ungroup() |>
   
@@ -210,15 +226,15 @@ wealth_data <- merged_data |>
   rowwise() |>
   mutate(
     # 1. Missingness count across the 9 core variables
-    missing_count = sum(is.na(c(idx_pct_homeownership, idx_median_income, idx_percent_poverty, idx_percent_unemployed, 
-                                idx_small_business_loan_rate, idx_small_business_loan_amount_per_household, 
-                                idx_median_home_price, idx_appreciation_rate))),
+    missing_count = sum(is.na(c(z_pct_homeownership, z_median_income, z_percent_poverty, z_percent_unemployed, 
+                                z_small_business_loan_rate, z_small_business_loan_amount_per_household, 
+                                z_median_home_price, z_appreciation_rate))),
     
     # 2. Calculate Sub-domain scores
-    score_stability = mean(c(idx_pct_homeownership, idx_median_income, idx_percent_poverty, idx_percent_unemployed), na.rm = TRUE),
-    score_assets    = mean(c(idx_median_home_price, idx_appreciation_rate), na.rm = TRUE),
-    score_capital   = mean(c(idx_small_business_loan_rate, idx_small_business_loan_amount_per_household), na.rm = TRUE),
-    
+    score_stability = mean(c(z_pct_homeownership, z_median_income, z_percent_poverty, z_percent_unemployed), na.rm = TRUE),
+    score_assets    = mean(c(z_median_home_price, z_appreciation_rate), na.rm = TRUE),
+    score_capital   = mean(c(z_small_business_loan_rate, z_small_business_loan_amount_per_household), na.rm = TRUE),
+
     # 3. Calculate preliminary overall score (based on PCA loadings and weights)
     raw_wealth_score = 0.5 * score_stability + 0.25 * score_assets + 0.25 * score_capital,
 
@@ -234,17 +250,17 @@ wealth_data <- merged_data |>
   # STEP C: Calculate the final relative Z-Score and Percentile by year
   group_by(year) |>
   mutate(
-    wealth_zscore     = (wealth_score - mean(wealth_score, na.rm = TRUE)) / sd(wealth_score, na.rm = TRUE),
-    wealth_percentile = percent_rank(wealth_score) * 100
+    wealth_percentile = percent_rank(wealth_score) * 100,
+    idx_wealth_score  = scale_0_100(wealth_score, "positive")
   ) |>
   ungroup() |>
   
   select(-raw_wealth_score, -missing_count)
 
 # STEP D: Compute the PCA loadings for the 2022 base year to validate the WAI sub-domains
-pca_vars <- c("idx_pct_homeownership", "idx_median_income", "idx_percent_poverty", "idx_percent_unemployed", 
-              "idx_small_business_loan_rate", "idx_small_business_loan_amount_per_household", 
-              "idx_median_home_price", "idx_appreciation_rate")
+pca_vars <- c("z_pct_homeownership", "z_median_income", "z_percent_poverty", "z_percent_unemployed", 
+              "z_small_business_loan_rate", "z_small_business_loan_amount_per_household", 
+              "z_median_home_price", "z_appreciation_rate")
 data_2022 <- wealth_data |>
   filter(year == 2022) |>
   drop_na(all_of(pca_vars))
@@ -255,7 +271,7 @@ print(loadings)
 
 
 hsi_data <- hsi_data |>
-  left_join(wealth_data |> select(GEOID, year, wealth_score, wealth_zscore, wealth_percentile), by = c("GEOID", "year"))
+  left_join(wealth_data |> select(GEOID, year, wealth_score, idx_wealth_score, wealth_percentile), by = c("GEOID", "year"))
 
 # 6. Save the final HSI dataset to a CSV file
 output_file <- "../data/clean/hsi_data.csv"
