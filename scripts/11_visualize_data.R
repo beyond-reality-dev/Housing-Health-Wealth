@@ -9,6 +9,7 @@ library(htmltools)
 library(mapview)
 library(webshot2)
 library(magick)
+source("about_panel.R")
 
 # 1. Read the HSI data with GEOIDs and years
 hsi_data <- read_csv("../data/clean/hsi_data.csv") |>
@@ -107,18 +108,18 @@ for (current_year in target_years) {
 
 # 7. Add controls and legends to their respective maps
 hsi_map <- hsi_map |>
-  addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
+  addLayersControl(baseGroups = c("2024", setdiff(as.character(target_years), "2024")), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
   addLegend(pal = pal_hsi, values = c(0, 100), title = "Housing Stability Index", position = "bottomright")
-
 health_map <- health_map |>
-  addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
+  addLayersControl(baseGroups = c("2024", setdiff(as.character(target_years), "2024")), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
   addLegend(pal = pal_health, values = c(0, 100), title = "Health Outcomes Index", position = "bottomright")
-
 wealth_map <- wealth_map |>
-  addLayersControl(baseGroups = as.character(target_years), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
+  addLayersControl(baseGroups = c("2024", setdiff(as.character(target_years), "2024")), options = layersControlOptions(collapsed = FALSE), position = "topright") |>
   addLegend(pal = pal_wealth, values = c(0, 100), title = "Wealth Accumulation Index", position = "bottomright")
+about_panel <- build_about_panel()
 
 # 8. Construct a Bootstrap layout with custom JS to fix tab-switching rendering bugs
+# Make the default tag 2024 instead of 2020 for each map
 dashboard_html <- tags$html(
   tags$head(
     tags$link(rel = "stylesheet", href = "https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"),
@@ -128,6 +129,7 @@ dashboard_html <- tags$html(
       body, html { height: 100%; margin: 0; padding: 0; }
       .tab-content, .tab-pane { height: calc(100vh - 50px); width: 100%; }
       .leaflet-container { height: 100% !important; width: 100% !important; }
+      #about-panel { height: calc(100vh - 50px); overflow-y: auto; }
     ")),
     tags$script(HTML("
       $(document).ready(function(){
@@ -147,12 +149,16 @@ dashboard_html <- tags$html(
       ),
       tags$li(class = "nav-item",
         tags$a(class = "nav-link", id = "wealth-tab", `data-toggle` = "tab", href = "#wealth-panel", role = "tab", "Wealth Accumulation Index (WAI)")
+      ),
+      tags$li(class = "nav-item",
+        tags$a(class = "nav-link", id = "about-tab", `data-toggle` = "tab", href = "#about-panel", role = "tab", "About")
       )
     ),
     tags$div(class = "tab-content", id = "indexTabsContent",
       tags$div(class = "tab-pane fade show active", id = "hsi-panel", role = "tabpanel", hsi_map),
       tags$div(class = "tab-pane fade", id = "health-panel", role = "tabpanel", health_map),
-      tags$div(class = "tab-pane fade", id = "wealth-panel", role = "tabpanel", wealth_map)
+      tags$div(class = "tab-pane fade", id = "wealth-panel", role = "tabpanel", wealth_map),
+      about_panel
     )
   )
 )
@@ -209,7 +215,7 @@ combined_image <- image_append(c(top_row, bottom_row), stack = TRUE)
 image_write(combined_image, path = "../output/images/baltimore_city/baltimore_combined_2024.png", format = "png")
 
 # 10. Save output
-output_html <- "../output/housing_dashboard.html"
+output_html <- "../output/housing_dashboard/index.html"
 dir.create(dirname(output_html), recursive = TRUE, showWarnings = FALSE)
 if (file.exists(output_html)) {
   file.remove(output_html)
